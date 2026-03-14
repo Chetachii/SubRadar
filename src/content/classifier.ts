@@ -1,0 +1,88 @@
+export const CONFIDENCE_THRESHOLD = 5
+
+interface ClassifierResult {
+  score: number
+  matchedSignals: string[]
+}
+
+const URL_PATTERNS = /\/(pricing|checkout|plans|billing|subscribe|trial|upgrade)/i
+
+const TRIAL_PHRASES = [
+  'start free trial',
+  'free trial',
+  'try for free',
+  'trial period',
+  'days free',
+]
+
+const SUBSCRIPTION_CTAS = [
+  'subscribe now',
+  'subscribe today',
+  'get started',
+  'start subscription',
+  'choose plan',
+  'select plan',
+]
+
+const PRICING_SIGNALS = [
+  'per month',
+  'per year',
+  'billed annually',
+  'billed monthly',
+  '/month',
+  '/year',
+  '/mo',
+  '/yr',
+]
+
+const CHECKOUT_PROVIDERS = ['stripe.com', 'paddle.com', 'gumroad.com', 'recurly.com']
+
+export function classifyPage(): ClassifierResult {
+  const signals: string[] = []
+  let score = 0
+
+  const url = window.location.href
+
+  if (URL_PATTERNS.test(url)) {
+    score += 2
+    signals.push('url_pattern')
+  }
+
+  const bodyText = document.body?.innerText?.toLowerCase() ?? ''
+  const pageTitle = document.title?.toLowerCase() ?? ''
+  const combined = bodyText + ' ' + pageTitle
+
+  for (const phrase of TRIAL_PHRASES) {
+    if (combined.includes(phrase)) {
+      score += 3
+      signals.push('trial_language')
+      break
+    }
+  }
+
+  for (const signal of PRICING_SIGNALS) {
+    if (combined.includes(signal)) {
+      score += 2
+      signals.push('pricing_block')
+      break
+    }
+  }
+
+  for (const cta of SUBSCRIPTION_CTAS) {
+    if (combined.includes(cta)) {
+      score += 3
+      signals.push('subscription_cta')
+      break
+    }
+  }
+
+  for (const provider of CHECKOUT_PROVIDERS) {
+    if (url.includes(provider) || combined.includes(provider)) {
+      score += 3
+      signals.push('checkout_provider')
+      break
+    }
+  }
+
+  return { score, matchedSignals: signals }
+}
