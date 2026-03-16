@@ -1,7 +1,9 @@
+import React from 'react'
 import type { Subscription } from '../types/subscription'
 import type { Preferences } from '../types/preferences'
 import { groupBySection } from '../services/statusService'
 import SubscriptionCard from './SubscriptionCard'
+import { BanIcon, BellIcon, CheckCircleIcon, ClockIcon, PackageIcon, RadioIcon, SearchIcon } from '../components/icons'
 
 type FilterTab = 'all' | 'active' | 'trials' | 'cancel_soon' | 'archived'
 
@@ -13,37 +15,37 @@ interface Props {
   onRefresh: () => void
 }
 
-const SECTION_ICONS: Record<string, string> = {
-  cancelSoon: '🔴',
-  renewSoon: '🟡',
-  active: '🟢',
-  trials: '⏳',
-  archived: '📦',
+const SECTION_DOT_CLASS: Record<string, string> = {
+  cancelSoon: 'section-dot section-dot--cancel',
+  renewSoon:  'section-dot section-dot--renew',
+  active:     'section-dot section-dot--active',
+  trials:     'section-dot section-dot--trials',
+  archived:   'section-dot section-dot--archived',
 }
 
-const SECTION_EMPTY: Record<string, { icon: string; title: string; hint: string }> = {
+const SECTION_EMPTY: Record<string, { icon: React.ReactElement; title: string; hint: string }> = {
   cancelSoon: {
-    icon: '🚫',
+    icon: <BanIcon size={24} />,
     title: 'Nothing to cancel right now',
     hint: 'Subscriptions you plan to cancel will appear here when their deadline approaches.',
   },
   renewSoon: {
-    icon: '🔔',
+    icon: <BellIcon size={24} />,
     title: 'No renewals coming up',
     hint: 'Subscriptions renewing soon will show up here.',
   },
   active: {
-    icon: '✅',
+    icon: <CheckCircleIcon size={24} />,
     title: 'No active subscriptions',
     hint: 'Subscriptions you are actively tracking will appear here.',
   },
   trials: {
-    icon: '⏳',
+    icon: <ClockIcon size={24} />,
     title: 'No trials ending soon',
     hint: 'Free trials expiring within 14 days will appear here.',
   },
   archived: {
-    icon: '📦',
+    icon: <PackageIcon size={24} />,
     title: 'Nothing archived yet',
     hint: 'Subscriptions you archive will be stored here for reference.',
   },
@@ -109,7 +111,9 @@ export default function SubscriptionList({ subscriptions, prefs, filter, search,
   if (!hasAnyData && !search) {
     return (
       <div className="empty-state">
-        <div className="empty-state-icon">📡</div>
+        <div className="empty-state-icon">
+          <RadioIcon size={40} />
+        </div>
         <p className="empty-state-title">No subscriptions here yet</p>
         <p className="empty-state-hint">
           Click the SubRadar extension icon on any subscription page to start tracking.
@@ -123,7 +127,9 @@ export default function SubscriptionList({ subscriptions, prefs, filter, search,
   if (search && !hasAnyResults) {
     return (
       <div className="empty-state">
-        <div className="empty-state-icon">🔍</div>
+        <div className="empty-state-icon">
+          <SearchIcon size={40} />
+        </div>
         <p className="empty-state-title">No results for "{search}"</p>
         <p className="empty-state-hint">Try a different service name or domain.</p>
       </div>
@@ -140,7 +146,8 @@ export default function SubscriptionList({ subscriptions, prefs, filter, search,
           <div key={section.key} className="section">
             <div className="section-header">
               <h2 className="section-title">
-                {SECTION_ICONS[section.key]} {section.label}
+                <span className={SECTION_DOT_CLASS[section.key]} aria-hidden="true" />
+                {section.label}
               </h2>
               <span className="section-count">{filtered.length}</span>
               <div className="section-divider" />
@@ -148,7 +155,7 @@ export default function SubscriptionList({ subscriptions, prefs, filter, search,
 
             {filtered.length === 0 ? (
               <div className="section-empty">
-                <span className="section-empty-icon" aria-hidden="true">{empty.icon}</span>
+                <div className="section-empty-icon" aria-hidden="true">{empty.icon}</div>
                 <p className="section-empty-title">
                   {search ? `No results for "${search}" in this section` : empty.title}
                 </p>

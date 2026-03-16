@@ -4,6 +4,7 @@ import type { Preferences } from '../types/preferences'
 import { listSubscriptions } from '../repository/subscriptionRepository'
 import { getPreferences } from '../repository/preferencesRepository'
 import SubscriptionList from './SubscriptionList'
+import { ListIcon, TimerIcon, XCircleIcon, RotateCcwIcon, XIcon } from '../components/icons'
 
 const SEED_DATA: Omit<Subscription, never>[] = [
   {
@@ -123,28 +124,28 @@ export default function Dashboard() {
       {!loading && (
         <div className="summary-grid">
           <div className="summary-card summary-card--total">
-            <div className="summary-icon-wrap">📋</div>
+            <div className="summary-icon-wrap"><ListIcon size={22} aria-hidden="true" /></div>
             <div className="summary-text">
               <div className="summary-value">{summary.active}</div>
               <div className="summary-label">Active subscriptions</div>
             </div>
           </div>
           <div className="summary-card summary-card--trials">
-            <div className="summary-icon-wrap">⏳</div>
+            <div className="summary-icon-wrap"><TimerIcon size={22} aria-hidden="true" /></div>
             <div className="summary-text">
               <div className="summary-value">{summary.trialsSoon}</div>
               <div className="summary-label">Trials ending soon</div>
             </div>
           </div>
           <div className="summary-card summary-card--cancel">
-            <div className="summary-icon-wrap">🚫</div>
+            <div className="summary-icon-wrap"><XCircleIcon size={22} aria-hidden="true" /></div>
             <div className="summary-text">
               <div className="summary-value">{summary.markedCancel}</div>
               <div className="summary-label">Marked for cancellation</div>
             </div>
           </div>
           <div className="summary-card summary-card--renew">
-            <div className="summary-icon-wrap">🔄</div>
+            <div className="summary-icon-wrap"><RotateCcwIcon size={22} aria-hidden="true" /></div>
             <div className="summary-text">
               <div className="summary-value">{summary.markedRenew}</div>
               <div className="summary-label">Marked for renewal</div>
@@ -174,7 +175,7 @@ export default function Dashboard() {
         />
         {search && (
           <button className="search-clear" onClick={() => setSearch('')} aria-label="Clear search">
-            ×
+            <XIcon size={14} aria-hidden="true" />
           </button>
         )}
       </div>

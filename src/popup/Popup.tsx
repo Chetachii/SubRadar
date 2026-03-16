@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { DetectionResult } from '../types/subscription'
 import TrackPrompt from './TrackPrompt'
 import ManualEntryForm from './ManualEntryForm'
+import { RadioIcon, CheckCircleIcon } from '../components/icons'
 import './popup.css'
 
 type View = 'loading' | 'track_prompt' | 'manual_entry' | 'success'
@@ -37,7 +38,7 @@ export default function Popup() {
       <div className="popup">
         <div className="popup-header">
           <div className="popup-logo">
-            <div className="popup-logo-mark">📡</div>
+            <div className="popup-logo-mark"><RadioIcon size={16} aria-hidden="true" /></div>
             <span className="popup-title">SubRadar</span>
           </div>
         </div>
@@ -53,12 +54,12 @@ export default function Popup() {
       <div className="popup">
         <div className="popup-header">
           <div className="popup-logo">
-            <div className="popup-logo-mark">📡</div>
+            <div className="popup-logo-mark"><RadioIcon size={16} aria-hidden="true" /></div>
             <span className="popup-title">SubRadar</span>
           </div>
         </div>
         <div className="success-view">
-          <div className="success-icon">✅</div>
+          <div className="success-icon"><CheckCircleIcon size={28} aria-hidden="true" /></div>
           <p className="success-title">Subscription tracked!</p>
           <p className="success-sub">It will appear in your dashboard.</p>
           <button className="btn-text-link" onClick={() => setView('manual_entry')}>
@@ -73,7 +74,7 @@ export default function Popup() {
     <div className="popup">
       <div className="popup-header">
         <div className="popup-logo">
-          <div className="popup-logo-mark">📡</div>
+          <div className="popup-logo-mark"><RadioIcon size={16} aria-hidden="true" /></div>
           <span className="popup-title">SubRadar</span>
         </div>
       </div>

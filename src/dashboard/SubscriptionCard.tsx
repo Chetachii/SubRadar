@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import type { Subscription } from '../types/subscription'
 import { archiveSubscription, cancelSubscription, markRenewed } from '../services/subscriptionService'
 import { formatCurrency } from '../utils/currency'
 import SubscriptionEditor from './SubscriptionEditor'
+import { CalendarIcon, RefreshCwIcon, BellIcon, BanIcon, CircleHelpIcon } from '../components/icons'
 
 interface Props {
   subscription: Subscription
@@ -25,11 +26,11 @@ const INTENT_LABELS: Record<string, string> = {
   undecided: 'Undecided',
 }
 
-const INTENT_ICONS: Record<string, string> = {
-  cancel_before_trial_ends: '🚫',
-  remind_before_billing: '🔔',
-  renew_automatically: '🔄',
-  undecided: '❓',
+const INTENT_ICON_MAP: Record<string, React.ReactElement> = {
+  cancel_before_trial_ends: <BanIcon size={13} />,
+  remind_before_billing:    <BellIcon size={13} />,
+  renew_automatically:      <RefreshCwIcon size={13} />,
+  undecided:                <CircleHelpIcon size={13} />,
 }
 
 const MONOGRAM_COLORS = [
@@ -133,17 +134,32 @@ export default function SubscriptionCard({ subscription: sub, onRefresh, index }
         className={`sub-card sub-card--${sub.status}`}
         style={{ animationDelay: staggerDelay }}
       >
+        <div className="sub-card-top">
+          <span className={`sub-status-badge sub-status-badge--${sub.status}`}>
+            <span className="status-dot" />
+            {STATUS_LABELS[sub.status]}
+          </span>
+          {dueDate && (() => {
+            const rel = relativeLabel(dueDate)
+            return (
+              <div className="sub-date-block">
+                <span className="sub-date-main">
+                  <CalendarIcon size={12} aria-hidden="true" />
+                  {formatDate(dueDate)}
+                </span>
+                <span className={`sub-date-rel${rel.urgency ? ` sub-date-rel--${rel.urgency}` : ''}`}>
+                  {rel.text}
+                </span>
+              </div>
+            )
+          })()}
+        </div>
+
         <div className="sub-card-body">
           <ServiceLogo name={sub.serviceName} domain={sub.sourceDomain} bgColor={bgColor} />
 
           <div className="sub-content">
-            <div className="sub-top-row">
-              <span className="sub-name">{sub.serviceName}</span>
-              <span className={`sub-status-badge sub-status-badge--${sub.status}`}>
-                <span className="status-dot" />
-                {STATUS_LABELS[sub.status]}
-              </span>
-            </div>
+            <span className="sub-name">{sub.serviceName}</span>
 
             {sub.sourceDomain && (
               <div className="sub-domain">
@@ -163,24 +179,10 @@ export default function SubscriptionCard({ subscription: sub, onRefresh, index }
                   )}
                 </span>
               )}
-              {dueDate && (() => {
-                const rel = relativeLabel(dueDate)
-                return (
-                  <span className="sub-meta-item sub-meta-item--date">
-                    <span className="sub-meta-date-main">
-                      <span className="sub-meta-icon" aria-hidden="true">📅</span>
-                      {formatDate(dueDate)}
-                    </span>
-                    <span className={`sub-meta-date-rel${rel.urgency ? ` sub-meta-date-rel--${rel.urgency}` : ''}`}>
-                      {rel.text}
-                    </span>
-                  </span>
-                )
-              })()}
             </div>
 
             <div className={`sub-intent ${INTENT_CLASS[sub.intent] ?? 'sub-intent--undecided'}`}>
-              <span aria-hidden="true">{INTENT_ICONS[sub.intent]}</span>
+              <span aria-hidden="true">{INTENT_ICON_MAP[sub.intent]}</span>
               {INTENT_LABELS[sub.intent] ?? sub.intent}
             </div>
           </div>

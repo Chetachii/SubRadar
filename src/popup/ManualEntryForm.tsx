@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import type { Intent, BillingFrequency } from '../types/subscription'
+import { RefreshCwIcon, BellIcon, BanIcon, CircleHelpIcon, PinIcon, AlertCircleIcon, ChevronRightIcon } from '../components/icons'
 
 interface Props {
   onSaved: () => void
@@ -24,13 +25,13 @@ interface Errors {
 const INTENT_OPTIONS: {
   value: Intent
   label: string
-  icon: string
+  icon: React.ReactElement
   key: 'cancel' | 'remind' | 'renew' | 'undecided'
 }[] = [
-  { value: 'renew_automatically',      label: 'Renew automatically',            icon: '🔄', key: 'renew'     },
-  { value: 'remind_before_billing',    label: 'Remind me before billing',       icon: '🔔', key: 'remind'   },
-  { value: 'cancel_before_trial_ends', label: 'Cancel before trial ends',       icon: '🚫', key: 'cancel'   },
-  { value: 'undecided',                label: 'Not now',                        icon: '❓', key: 'undecided' },
+  { value: 'renew_automatically',      label: 'Renew automatically',      icon: <RefreshCwIcon size={16} />,  key: 'renew'     },
+  { value: 'remind_before_billing',    label: 'Remind me before billing', icon: <BellIcon size={16} />,       key: 'remind'   },
+  { value: 'cancel_before_trial_ends', label: 'Cancel before trial ends', icon: <BanIcon size={16} />,        key: 'cancel'   },
+  { value: 'undecided',                label: 'Not now',                  icon: <CircleHelpIcon size={16} />, key: 'undecided' },
 ]
 
 const FREQUENCY_OPTIONS: { value: BillingFrequency; label: string }[] = [
@@ -154,7 +155,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
                 ].join(' ')}
                 onClick={() => setIntent(opt.value)}
               >
-                <span className="intent-icon">{opt.icon}</span>
+                <span className="intent-icon" aria-hidden="true">{opt.icon}</span>
                 <span className="intent-label">{opt.label}</span>
               </button>
             ))}
@@ -243,7 +244,9 @@ export default function ManualEntryForm({ onSaved }: Props) {
             onClick={() => setOptionalOpen((v) => !v)}
             aria-expanded={optionalOpen}
           >
-            <span className={`optional-toggle-icon${optionalOpen ? ' optional-toggle-icon--open' : ''}`}>▶</span>
+            <span className={`optional-toggle-icon${optionalOpen ? ' optional-toggle-icon--open' : ''}`}>
+              <ChevronRightIcon size={12} />
+            </span>
             Optional details
             <span className="optional-divider" />
           </button>
@@ -275,7 +278,8 @@ export default function ManualEntryForm({ onSaved }: Props) {
 
         {submitError && (
           <div className="form-banner--error">
-            ⚠ {submitError}
+            <AlertCircleIcon size={14} aria-hidden="true" />
+            {submitError}
           </div>
         )}
 
@@ -287,7 +291,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
           onClick={handleSubmit}
           disabled={saving || hasErrors}
         >
-          {saving ? 'Saving…' : '📌 Track subscription'}
+          {saving ? 'Saving…' : <><PinIcon size={14} aria-hidden="true" /> Track subscription</>}
         </button>
       </div>
     </>

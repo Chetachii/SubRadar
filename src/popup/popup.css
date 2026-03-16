@@ -4,20 +4,20 @@
    ============================================ */
 
 :root {
-  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --weight-normal: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
   --weight-extrabold: 800;
 
-  --color-ground: #fafaf9;
+  --color-ground: #f9fafb;
   --color-surface: #ffffff;
-  --color-border: #e7e5e4;
-  --color-border-subtle: #f0eeec;
-  --color-text-primary: #1c1917;
-  --color-text-secondary: #57534e;
-  --color-text-tertiary: #a8a29e;
+  --color-border: #e5e7eb;
+  --color-border-subtle: #f3f4f6;
+  --color-text-primary: #111827;
+  --color-text-secondary: #374151;
+  --color-text-tertiary: #6b7280;
   --color-text-inverse: #ffffff;
 
   --color-primary: #2563eb;
@@ -25,7 +25,7 @@
   --color-primary-bg: #eff6ff;
   --color-primary-border: #bfdbfe;
 
-  --color-active: #16a34a;
+  --color-active: #15803d;
   --color-active-bg: #f0fdf4;
   --color-active-border: #bbf7d0;
 
@@ -33,7 +33,7 @@
   --color-cancel-bg: #fef2f2;
   --color-cancel-border: #fecaca;
 
-  --color-renew: #d97706;
+  --color-renew: #b45309;
   --color-renew-bg: #fffbeb;
   --color-renew-border: #fde68a;
 
@@ -112,7 +112,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
   color: var(--color-text-inverse);
 }
 
@@ -303,8 +302,11 @@ textarea.form-input {
 }
 
 .intent-icon {
-  font-size: 16px;
-  line-height: 1;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 2px;
 }
 
@@ -441,7 +443,7 @@ textarea.form-input {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  color: var(--color-active);
 }
 
 .success-title {
