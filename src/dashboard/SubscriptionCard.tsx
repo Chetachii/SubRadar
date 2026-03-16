@@ -1,21 +1,13 @@
 import { useState } from 'react'
 import type { Subscription } from '../types/subscription'
 import { archiveSubscription, cancelSubscription, markRenewed } from '../services/subscriptionService'
-import { getPreferences } from '../repository/preferencesRepository'
 import { formatCurrency } from '../utils/currency'
 import SubscriptionEditor from './SubscriptionEditor'
 
 interface Props {
   subscription: Subscription
   onRefresh: () => void
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  cancel_soon: '#fef2f2',
-  renew_soon: '#fffbeb',
-  active: '#f0fdf4',
-  archived: '#f9fafb',
-  canceled: '#f9fafb',
+  index: number
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -26,7 +18,94 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: 'Canceled',
 }
 
-export default function SubscriptionCard({ subscription: sub, onRefresh }: Props) {
+const INTENT_LABELS: Record<string, string> = {
+  cancel_before_trial_ends: 'Cancel before trial',
+  remind_before_billing: 'Remind before billing',
+  renew_automatically: 'Auto-renew',
+  undecided: 'Undecided',
+}
+
+const INTENT_ICONS: Record<string, string> = {
+  cancel_before_trial_ends: '🚫',
+  remind_before_billing: '🔔',
+  renew_automatically: '🔄',
+  undecided: '❓',
+}
+
+const MONOGRAM_COLORS = [
+  '#6366f1', '#8b5cf6', '#a855f7', '#ec4899',
+  '#ef4444', '#f97316', '#eab308', '#22c55e',
+  '#14b8a6', '#06b6d4', '#3b82f6', '#0ea5e9',
+]
+
+function getMonogramColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return MONOGRAM_COLORS[Math.abs(hash) % MONOGRAM_COLORS.length]
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+function relativeLabel(dateStr: string): { text: string; urgency: 'urgent' | 'soon' | null } {
+  const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  if (diff < 0) return { text: `${Math.abs(diff)}d overdue`, urgency: 'urgent' }
+  if (diff === 0) return { text: 'today', urgency: 'urgent' }
+  if (diff === 1) return { text: 'tomorrow', urgency: 'urgent' }
+  if (diff <= 7) return { text: `in ${diff} days`, urgency: 'urgent' }
+  if (diff <= 30) return { text: `in ${diff} days`, urgency: 'soon' }
+  return { text: `in ${diff} days`, urgency: null }
+}
+
+const INTENT_CLASS: Record<string, string> = {
+  cancel_before_trial_ends: 'sub-intent--cancel',
+  remind_before_billing:    'sub-intent--remind',
+  renew_automatically:      'sub-intent--renew',
+  undecided:                'sub-intent--undecided',
+}
+
+interface LogoProps {
+  name: string
+  domain?: string
+  bgColor: string
+}
+
+function ServiceLogo({ name, domain, bgColor }: LogoProps) {
+  const [imgFailed, setImgFailed] = useState(false)
+  const monogram = name.charAt(0).toUpperCase()
+
+  if (domain && !imgFailed) {
+    return (
+      <div className="sub-logo" style={{ background: bgColor }} aria-hidden="true">
+        <img
+          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+          alt=""
+          className="sub-logo-img"
+          onError={() => setImgFailed(true)}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="sub-monogram" style={{ background: bgColor }} aria-hidden="true">
+      {monogram}
+    </div>
+  )
+}
+
+export default function SubscriptionCard({ subscription: sub, onRefresh, index }: Props) {
   const [editing, setEditing] = useState(false)
 
   async function handleArchive() {
@@ -44,33 +123,80 @@ export default function SubscriptionCard({ subscription: sub, onRefresh }: Props
     onRefresh()
   }
 
-  const bgColor = STATUS_COLORS[sub.status] ?? '#f9fafb'
   const dueDate = sub.renewalDate ?? sub.trialEndDate
+  const bgColor = getMonogramColor(sub.serviceName)
+  const staggerDelay = `${index * 50}ms`
 
   return (
     <>
-      <div style={{ ...styles.card, background: bgColor }}>
-        <div style={styles.header}>
-          <span style={styles.name}>{sub.serviceName}</span>
-          <span style={styles.badge}>{STATUS_LABELS[sub.status]}</span>
+      <div
+        className={`sub-card sub-card--${sub.status}`}
+        style={{ animationDelay: staggerDelay }}
+      >
+        <div className="sub-card-body">
+          <ServiceLogo name={sub.serviceName} domain={sub.sourceDomain} bgColor={bgColor} />
+
+          <div className="sub-content">
+            <div className="sub-top-row">
+              <span className="sub-name">{sub.serviceName}</span>
+              <span className={`sub-status-badge sub-status-badge--${sub.status}`}>
+                <span className="status-dot" />
+                {STATUS_LABELS[sub.status]}
+              </span>
+            </div>
+
+            {sub.sourceDomain && (
+              <div className="sub-domain">
+                <span className="sub-domain-dot">·</span>
+                {sub.sourceDomain}
+              </div>
+            )}
+
+            <div className="sub-card-divider" />
+
+            <div className="sub-meta">
+              {sub.cost !== undefined && (
+                <span className="sub-meta-item sub-meta-item--price">
+                  {formatCurrency(sub.cost, sub.currency)}
+                  {sub.billingFrequency && sub.billingFrequency !== 'unknown' && (
+                    <span className="sub-meta-freq"> / {sub.billingFrequency.replace('_', ' ')}</span>
+                  )}
+                </span>
+              )}
+              {dueDate && (() => {
+                const rel = relativeLabel(dueDate)
+                return (
+                  <span className="sub-meta-item sub-meta-item--date">
+                    <span className="sub-meta-date-main">
+                      <span className="sub-meta-icon" aria-hidden="true">📅</span>
+                      {formatDate(dueDate)}
+                    </span>
+                    <span className={`sub-meta-date-rel${rel.urgency ? ` sub-meta-date-rel--${rel.urgency}` : ''}`}>
+                      {rel.text}
+                    </span>
+                  </span>
+                )
+              })()}
+            </div>
+
+            <div className={`sub-intent ${INTENT_CLASS[sub.intent] ?? 'sub-intent--undecided'}`}>
+              <span aria-hidden="true">{INTENT_ICONS[sub.intent]}</span>
+              {INTENT_LABELS[sub.intent] ?? sub.intent}
+            </div>
+          </div>
         </div>
 
-        <div style={styles.meta}>
-          {dueDate && <span>Due: {dueDate}</span>}
-          {sub.cost !== undefined && <span>{formatCurrency(sub.cost, sub.currency)}</span>}
-          {sub.billingFrequency && <span>{sub.billingFrequency}</span>}
-        </div>
-
-        <div style={styles.actions}>
-          <button style={styles.actionBtn} onClick={() => setEditing(true)}>Edit</button>
+        <div className="sub-actions">
+          <button className="btn btn--ghost" onClick={() => setEditing(true)}>Edit</button>
+          <button className="btn btn--ghost" onClick={handleMarkRenewed}>Renewed</button>
+          <button className="btn btn--ghost" onClick={handleArchive}>Archive</button>
           {sub.cancellationUrl && (
-            <a href={sub.cancellationUrl} target="_blank" rel="noreferrer" style={styles.actionLink}>
+            <a href={sub.cancellationUrl} target="_blank" rel="noreferrer" className="btn btn--link">
               Cancel page
             </a>
           )}
-          <button style={styles.actionBtn} onClick={handleMarkRenewed}>Renewed</button>
-          <button style={styles.actionBtn} onClick={handleArchive}>Archive</button>
-          <button style={{ ...styles.actionBtn, color: '#dc2626' }} onClick={handleCancel}>Cancel</button>
+          <span className="sub-actions-spacer" />
+          <button className="btn btn--danger" onClick={handleCancel}>Cancel</button>
         </div>
       </div>
 
@@ -83,18 +209,4 @@ export default function SubscriptionCard({ subscription: sub, onRefresh }: Props
       )}
     </>
   )
-}
-
-// suppress unused import warning
-void getPreferences
-
-const styles: Record<string, React.CSSProperties> = {
-  card: { borderRadius: '8px', padding: '14px 16px', marginBottom: '10px', border: '1px solid #e5e7eb' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
-  name: { fontWeight: 600, fontSize: '15px' },
-  badge: { fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', background: '#e5e7eb', color: '#374151' },
-  meta: { display: 'flex', gap: '12px', fontSize: '13px', color: '#6b7280', marginBottom: '10px' },
-  actions: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
-  actionBtn: { background: 'none', border: '1px solid #d1d5db', borderRadius: '4px', padding: '3px 10px', fontSize: '12px', cursor: 'pointer', color: '#374151' },
-  actionLink: { border: '1px solid #d1d5db', borderRadius: '4px', padding: '3px 10px', fontSize: '12px', cursor: 'pointer', color: '#2563eb', textDecoration: 'none' },
 }

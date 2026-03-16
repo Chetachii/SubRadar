@@ -1,95 +1,295 @@
 import { useState } from 'react'
-import type { Intent } from '../types/subscription'
+import type { Intent, BillingFrequency } from '../types/subscription'
 
 interface Props {
   onSaved: () => void
 }
 
-const INTENT_OPTIONS: { value: Intent; label: string }[] = [
-  { value: 'cancel_before_trial_ends', label: 'Cancel before trial ends' },
-  { value: 'remind_before_billing', label: 'Remind me before billing' },
-  { value: 'renew_automatically', label: 'Let it renew automatically' },
-  { value: 'undecided', label: 'Undecided' },
+interface FormState {
+  serviceName: string
+  price: string
+  billingFrequency: BillingFrequency
+  subscriptionDate: string
+  trialEndDate: string
+  renewalDate: string
+  cancellationUrl: string
+  notes: string
+}
+
+interface Errors {
+  serviceName?: string
+  price?: string
+}
+
+const INTENT_OPTIONS: {
+  value: Intent
+  label: string
+  icon: string
+  key: 'cancel' | 'remind' | 'renew' | 'undecided'
+}[] = [
+  { value: 'renew_automatically',      label: 'Renew automatically',            icon: '🔄', key: 'renew'     },
+  { value: 'remind_before_billing',    label: 'Remind me before billing',       icon: '🔔', key: 'remind'   },
+  { value: 'cancel_before_trial_ends', label: 'Cancel before trial ends',       icon: '🚫', key: 'cancel'   },
+  { value: 'undecided',                label: 'Not now',                        icon: '❓', key: 'undecided' },
 ]
 
+const FREQUENCY_OPTIONS: { value: BillingFrequency; label: string }[] = [
+  { value: 'monthly',   label: 'Monthly'   },
+  { value: 'yearly',    label: 'Yearly'    },
+  { value: 'weekly',    label: 'Weekly'    },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'one_time',  label: 'One-time'  },
+  { value: 'unknown',   label: 'Unknown'   },
+]
+
+const EMPTY: FormState = {
+  serviceName: '',
+  price: '',
+  billingFrequency: 'monthly',
+  subscriptionDate: '',
+  trialEndDate: '',
+  renewalDate: '',
+  cancellationUrl: '',
+  notes: '',
+}
+
+function validate(form: FormState): Errors {
+  const errors: Errors = {}
+  if (!form.serviceName.trim()) errors.serviceName = 'Service name is required'
+  if (form.price && isNaN(parseFloat(form.price))) errors.price = 'Enter a valid price'
+  return errors
+}
+
 export default function ManualEntryForm({ onSaved }: Props) {
-  const [serviceName, setServiceName] = useState('')
+  const [form, setForm] = useState<FormState>(EMPTY)
   const [intent, setIntent] = useState<Intent>('cancel_before_trial_ends')
-  const [trialEndDate, setTrialEndDate] = useState('')
-  const [renewalDate, setRenewalDate] = useState('')
-  const [cost, setCost] = useState('')
-  const [cancellationUrl, setCancellationUrl] = useState('')
-  const [notes, setNotes] = useState('')
+  const [errors, setErrors] = useState<Errors>({})
+  const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({})
+  const [optionalOpen, setOptionalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  async function handleSave() {
-    if (!serviceName.trim()) {
-      setError('Service name is required.')
-      return
-    }
-    setSaving(true)
-    setError(null)
-
-    const response = await chrome.runtime.sendMessage({
-      type: 'SAVE_SUBSCRIPTION',
-      payload: {
-        serviceName: serviceName.trim(),
-        intent,
-        detectionSource: 'manual_entry' as const,
-        trialEndDate: trialEndDate || undefined,
-        renewalDate: renewalDate || undefined,
-        cost: cost ? parseFloat(cost) : undefined,
-        cancellationUrl: cancellationUrl || undefined,
-        notes: notes || undefined,
-      },
-    })
-
-    setSaving(false)
-    if (response?.ok) {
-      onSaved()
-    } else {
-      setError(response?.error ?? 'Something went wrong.')
+  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    const next = { ...form, [key]: value }
+    setForm(next)
+    if (touched[key]) {
+      const errs = validate(next)
+      setErrors((prev) => ({ ...prev, [key]: errs[key as keyof Errors] }))
     }
   }
 
+  function blur(key: keyof FormState) {
+    setTouched((prev) => ({ ...prev, [key]: true }))
+    const errs = validate(form)
+    setErrors((prev) => ({ ...prev, [key]: errs[key as keyof Errors] }))
+  }
+
+  async function handleSubmit() {
+    const allTouched = Object.fromEntries(Object.keys(EMPTY).map((k) => [k, true])) as typeof touched
+    setTouched(allTouched)
+    const errs = validate(form)
+    setErrors(errs)
+    if (Object.keys(errs).length) return
+
+    setSaving(true)
+    setSubmitError(null)
+
+    // Mocked submit — swap for chrome.runtime.sendMessage in production
+    await new Promise((r) => setTimeout(r, 600))
+    console.log('SAVE_SUBSCRIPTION', {
+      serviceName: form.serviceName.trim(),
+      intent,
+      detectionSource: 'manual_entry' as const,
+      cost: form.price ? parseFloat(form.price) : undefined,
+      billingFrequency: form.billingFrequency,
+      subscriptionDate: form.subscriptionDate || undefined,
+      trialEndDate: form.trialEndDate || undefined,
+      renewalDate: form.renewalDate || undefined,
+      cancellationUrl: form.cancellationUrl || undefined,
+      notes: form.notes || undefined,
+    })
+
+    setSaving(false)
+    onSaved()
+  }
+
+  const hasErrors = Object.values(errors).some(Boolean)
+
   return (
-    <div>
-      <label style={styles.fieldLabel}>Service name *</label>
-      <input style={styles.input} value={serviceName} onChange={(e) => setServiceName(e.target.value)} placeholder="e.g. Spotify" />
+    <>
+      <div className="popup-body">
 
-      <label style={styles.fieldLabel}>Intent</label>
-      <select style={styles.input} value={intent} onChange={(e) => setIntent(e.target.value as Intent)}>
-        {INTENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+        {/* Service name */}
+        <div className="form-section">
+          <div className="form-field">
+            <label className="form-label">
+              Service name <span className="form-label-required">*</span>
+            </label>
+            <input
+              className={`form-input${errors.serviceName && touched.serviceName ? ' form-input--error' : ''}`}
+              placeholder="e.g. Spotify, Adobe CC…"
+              value={form.serviceName}
+              onChange={(e) => set('serviceName', e.target.value)}
+              onBlur={() => blur('serviceName')}
+              autoFocus
+            />
+            {errors.serviceName && touched.serviceName && (
+              <p className="form-error-msg">{errors.serviceName}</p>
+            )}
+          </div>
+        </div>
 
-      <label style={styles.fieldLabel}>Trial end date</label>
-      <input style={styles.input} type="date" value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)} />
+        {/* Intent */}
+        <div className="form-section">
+          <p className="form-section-title">What do you want to do?</p>
+          <div className="intent-grid">
+            {INTENT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={[
+                  'intent-option',
+                  `intent-option--${opt.key}`,
+                  intent === opt.value ? 'intent-option--selected' : '',
+                ].join(' ')}
+                onClick={() => setIntent(opt.value)}
+              >
+                <span className="intent-icon">{opt.icon}</span>
+                <span className="intent-label">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-      <label style={styles.fieldLabel}>Renewal date</label>
-      <input style={styles.input} type="date" value={renewalDate} onChange={(e) => setRenewalDate(e.target.value)} />
+        {/* Billing */}
+        <div className="form-section">
+          <p className="form-section-title">Billing</p>
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Price</label>
+              <div className="form-input-prefix-wrap">
+                <span className="form-input-prefix">$</span>
+                <input
+                  className={`form-input form-input--prefixed${errors.price && touched.price ? ' form-input--error' : ''}`}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={form.price}
+                  onChange={(e) => set('price', e.target.value)}
+                  onBlur={() => blur('price')}
+                />
+              </div>
+              {errors.price && touched.price && (
+                <p className="form-error-msg">{errors.price}</p>
+              )}
+            </div>
+            <div className="form-field">
+              <label className="form-label">Frequency</label>
+              <select
+                className="form-input"
+                value={form.billingFrequency}
+                onChange={(e) => set('billingFrequency', e.target.value as BillingFrequency)}
+              >
+                {FREQUENCY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
 
-      <label style={styles.fieldLabel}>Cost (optional)</label>
-      <input style={styles.input} type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="9.99" />
+        {/* Dates */}
+        <div className="form-section">
+          <p className="form-section-title">Dates</p>
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Subscription date</label>
+              <input
+                className="form-input"
+                type="date"
+                value={form.subscriptionDate}
+                onChange={(e) => set('subscriptionDate', e.target.value)}
+              />
+            </div>
+            <div className="form-field">
+              <label className="form-label">Renewal date</label>
+              <input
+                className="form-input"
+                type="date"
+                value={form.renewalDate}
+                onChange={(e) => set('renewalDate', e.target.value)}
+              />
+            </div>
+          </div>
+          {(intent === 'cancel_before_trial_ends' || form.trialEndDate) && (
+            <div className="form-field">
+              <label className="form-label">Trial end date</label>
+              <input
+                className="form-input"
+                type="date"
+                value={form.trialEndDate}
+                onChange={(e) => set('trialEndDate', e.target.value)}
+              />
+            </div>
+          )}
+        </div>
 
-      <label style={styles.fieldLabel}>Cancellation URL (optional)</label>
-      <input style={styles.input} value={cancellationUrl} onChange={(e) => setCancellationUrl(e.target.value)} placeholder="https://..." />
+        {/* Optional fields */}
+        <div className="form-section">
+          <button
+            type="button"
+            className="optional-toggle"
+            onClick={() => setOptionalOpen((v) => !v)}
+            aria-expanded={optionalOpen}
+          >
+            <span className={`optional-toggle-icon${optionalOpen ? ' optional-toggle-icon--open' : ''}`}>▶</span>
+            Optional details
+            <span className="optional-divider" />
+          </button>
 
-      <label style={styles.fieldLabel}>Notes (optional)</label>
-      <textarea style={{ ...styles.input, resize: 'vertical', minHeight: '60px' }} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          {optionalOpen && (
+            <div className="optional-fields">
+              <div className="form-field">
+                <label className="form-label">Cancellation URL</label>
+                <input
+                  className="form-input"
+                  type="url"
+                  placeholder="https://…"
+                  value={form.cancellationUrl}
+                  onChange={(e) => set('cancellationUrl', e.target.value)}
+                />
+              </div>
+              <div className="form-field">
+                <label className="form-label">Notes</label>
+                <textarea
+                  className="form-input"
+                  placeholder="Anything worth remembering…"
+                  value={form.notes}
+                  onChange={(e) => set('notes', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
-      {error && <p style={styles.error}>{error}</p>}
+        {submitError && (
+          <div className="form-banner--error">
+            ⚠ {submitError}
+          </div>
+        )}
 
-      <button style={styles.btnPrimary} onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving…' : 'Track subscription'}
-      </button>
-    </div>
+      </div>
+
+      <div className="popup-footer">
+        <button
+          className="btn-submit"
+          onClick={handleSubmit}
+          disabled={saving || hasErrors}
+        >
+          {saving ? 'Saving…' : '📌 Track subscription'}
+        </button>
+      </div>
+    </>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  fieldLabel: { display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px', color: '#374151' },
-  input: { display: 'block', width: '100%', padding: '6px 8px', marginBottom: '10px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px', boxSizing: 'border-box' },
-  error: { color: '#dc2626', fontSize: '12px', marginBottom: '8px' },
-  btnPrimary: { width: '100%', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', padding: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 },
 }

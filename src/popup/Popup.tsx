@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { DetectionResult } from '../types/subscription'
 import TrackPrompt from './TrackPrompt'
 import ManualEntryForm from './ManualEntryForm'
+import './popup.css'
 
 type View = 'loading' | 'track_prompt' | 'manual_entry' | 'success'
 
@@ -32,21 +33,51 @@ export default function Popup() {
   }
 
   if (view === 'loading') {
-    return <div style={styles.container}><p>Loading…</p></div>
+    return (
+      <div className="popup">
+        <div className="popup-header">
+          <div className="popup-logo">
+            <div className="popup-logo-mark">📡</div>
+            <span className="popup-title">SubRadar</span>
+          </div>
+        </div>
+        <div className="popup-body" style={{ color: 'var(--color-text-tertiary)', fontSize: '13px' }}>
+          Loading…
+        </div>
+      </div>
+    )
   }
 
   if (view === 'success') {
     return (
-      <div style={styles.container}>
-        <p style={styles.successText}>Subscription tracked!</p>
-        <button style={styles.linkBtn} onClick={() => setView('manual_entry')}>Track another</button>
+      <div className="popup">
+        <div className="popup-header">
+          <div className="popup-logo">
+            <div className="popup-logo-mark">📡</div>
+            <span className="popup-title">SubRadar</span>
+          </div>
+        </div>
+        <div className="success-view">
+          <div className="success-icon">✅</div>
+          <p className="success-title">Subscription tracked!</p>
+          <p className="success-sub">It will appear in your dashboard.</p>
+          <button className="btn-text-link" onClick={() => setView('manual_entry')}>
+            Track another
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>SubRadar</h2>
+    <div className="popup">
+      <div className="popup-header">
+        <div className="popup-logo">
+          <div className="popup-logo-mark">📡</div>
+          <span className="popup-title">SubRadar</span>
+        </div>
+      </div>
+
       {view === 'track_prompt' && detection ? (
         <TrackPrompt result={detection} onSaved={handleSaved} onDismiss={handleDismiss} />
       ) : (
@@ -54,11 +85,4 @@ export default function Popup() {
       )}
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  container: { padding: '16px', minWidth: '360px', fontFamily: 'system-ui, sans-serif' },
-  heading: { margin: '0 0 12px', fontSize: '18px', fontWeight: 700 },
-  successText: { color: '#16a34a', fontWeight: 600 },
-  linkBtn: { background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0, fontSize: '14px' },
 }
