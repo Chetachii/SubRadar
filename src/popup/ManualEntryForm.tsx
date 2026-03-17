@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import type { Intent, BillingFrequency } from '../types/subscription'
-import { RefreshCwIcon, BellIcon, BanIcon, CircleHelpIcon, PinIcon, AlertCircleIcon, ChevronRightIcon } from '../components/icons'
+import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, CircleHelp as CircleHelpIcon, Pin as PinIcon, AlertCircle as AlertCircleIcon, ChevronRight as ChevronRightIcon } from 'lucide-react'
 
 interface Props {
   onSaved: () => void

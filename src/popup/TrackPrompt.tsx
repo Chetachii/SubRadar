@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { DetectionResult, Intent } from '../types/subscription'
+import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, CircleHelp as CircleHelpIcon, Pin as PinIcon } from 'lucide-react'
 
 interface Props {
   result: DetectionResult
@@ -7,12 +8,12 @@ interface Props {
   onDismiss: () => void
 }
 
-const INTENT_OPTIONS: { value: Intent; label: string }[] = [
-  { value: 'cancel_before_trial_ends', label: 'Cancel before trial ends' },
-  { value: 'remind_before_billing', label: 'Remind me before billing' },
-  { value: 'renew_automatically', label: 'Let it renew automatically' },
-  { value: 'undecided', label: 'Undecided' },
-]
+const INTENT_OPTIONS = [
+  { value: 'renew_automatically',      label: 'Renew automatically',      icon: <RefreshCwIcon size={16} />, key: 'renew'     },
+  { value: 'remind_before_billing',    label: 'Remind me before billing', icon: <BellIcon size={16} />,      key: 'remind'    },
+  { value: 'cancel_before_trial_ends', label: 'Cancel before trial ends', icon: <BanIcon size={16} />,       key: 'cancel'    },
+  { value: 'undecided',                label: 'Undecided',                icon: <CircleHelpIcon size={16} />,key: 'undecided' },
+] as const
 
 export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
   const [serviceName, setServiceName] = useState(result.serviceName ?? '')
@@ -48,42 +49,56 @@ export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
   }
 
   return (
-    <div>
-      <p style={styles.label}>Detected subscription on <strong>{result.sourceDomain}</strong></p>
+    <>
+      <div className="popup-body">
+        <p className="track-detected-banner">
+          Detected subscription on <strong>{result.sourceDomain}</strong>
+        </p>
 
-      <label style={styles.fieldLabel}>Service name</label>
-      <input
-        style={styles.input}
-        value={serviceName}
-        onChange={(e) => setServiceName(e.target.value)}
-        placeholder="e.g. Netflix"
-      />
+        <div className="form-section">
+          <div className="form-field">
+            <label className="form-label">Service name</label>
+            <input
+              className={`form-input${error && !serviceName.trim() ? ' form-input--error' : ''}`}
+              value={serviceName}
+              onChange={(e) => setServiceName(e.target.value)}
+              placeholder="e.g. Netflix"
+              autoFocus
+            />
+            {error && <p className="form-error-msg">{error}</p>}
+          </div>
+        </div>
 
-      <label style={styles.fieldLabel}>Your intent</label>
-      <select style={styles.input} value={intent} onChange={(e) => setIntent(e.target.value as Intent)}>
-        {INTENT_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-
-      {error && <p style={styles.error}>{error}</p>}
-
-      <div style={styles.actions}>
-        <button style={styles.btnSecondary} onClick={onDismiss}>Dismiss</button>
-        <button style={styles.btnPrimary} onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Track it'}
-        </button>
+        <div className="form-section">
+          <p className="form-section-title">What do you want to do?</p>
+          <div className="intent-grid">
+            {INTENT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={[
+                  'intent-option',
+                  `intent-option--${opt.key}`,
+                  intent === opt.value ? 'intent-option--selected' : '',
+                ].join(' ')}
+                onClick={() => setIntent(opt.value as Intent)}
+              >
+                <span className="intent-icon" aria-hidden="true">{opt.icon}</span>
+                <span className="intent-label">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
-    </div>
-  )
-}
 
-const styles: Record<string, React.CSSProperties> = {
-  label: { fontSize: '13px', color: '#64748b', margin: '0 0 12px' },
-  fieldLabel: { display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px', color: '#374151' },
-  input: { display: 'block', width: '100%', padding: '6px 8px', marginBottom: '12px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px', boxSizing: 'border-box' },
-  error: { color: '#dc2626', fontSize: '12px', marginBottom: '8px' },
-  actions: { display: 'flex', gap: '8px', justifyContent: 'flex-end' },
-  btnPrimary: { background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', fontSize: '14px' },
-  btnSecondary: { background: 'transparent', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', fontSize: '14px' },
+      <div className="popup-footer">
+        <div className="popup-footer-row">
+          <button className="btn-dismiss" onClick={onDismiss}>Dismiss</button>
+          <button className="btn-submit" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : <><PinIcon size={14} aria-hidden="true" /> Track it</>}
+          </button>
+        </div>
+      </div>
+    </>
+  )
 }

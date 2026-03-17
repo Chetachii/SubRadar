@@ -4,7 +4,7 @@ import type { Preferences } from '../types/preferences'
 import { listSubscriptions } from '../repository/subscriptionRepository'
 import { getPreferences } from '../repository/preferencesRepository'
 import SubscriptionList from './SubscriptionList'
-import { ListIcon, TimerIcon, XCircleIcon, RotateCcwIcon, XIcon } from '../components/icons'
+import { List as ListIcon, Timer as TimerIcon, XCircle as XCircleIcon, RotateCcw as RotateCcwIcon, X as XIcon, Search as SearchIcon } from 'lucide-react'
 
 const SEED_DATA: Omit<Subscription, never>[] = [
   {
@@ -156,14 +156,7 @@ export default function Dashboard() {
 
       <div className="search-bar">
         <span className="search-icon" aria-hidden="true">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-            <path
-              d="M10 6.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Zm-.684 3.926a5 5 0 1 1 1.06-1.06l2.629 2.628a.75.75 0 1 1-1.06 1.061l-2.629-2.629Z"
-              fill="currentColor"
-              fillRule="evenodd"
-              clipRule="evenodd"
-            />
-          </svg>
+          <SearchIcon size={15} />
         </span>
         <input
           className="search-input"

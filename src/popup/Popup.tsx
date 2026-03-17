@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { DetectionResult } from '../types/subscription'
 import TrackPrompt from './TrackPrompt'
 import ManualEntryForm from './ManualEntryForm'
-import { RadioIcon, CheckCircleIcon } from '../components/icons'
+import { Radio as RadioIcon, CheckCircle as CheckCircleIcon } from 'lucide-react'
 import './popup.css'
 
 type View = 'loading' | 'track_prompt' | 'manual_entry' | 'success'

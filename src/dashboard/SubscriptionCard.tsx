@@ -3,7 +3,7 @@ import type { Subscription } from '../types/subscription'
 import { archiveSubscription, cancelSubscription, markRenewed } from '../services/subscriptionService'
 import { formatCurrency } from '../utils/currency'
 import SubscriptionEditor from './SubscriptionEditor'
-import { CalendarIcon, RefreshCwIcon, BellIcon, BanIcon, CircleHelpIcon } from '../components/icons'
+import { Calendar as CalendarIcon, RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, CircleHelp as CircleHelpIcon } from 'lucide-react'
 
 interface Props {
   subscription: Subscription

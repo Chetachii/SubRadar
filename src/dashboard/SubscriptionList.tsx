@@ -3,7 +3,7 @@ import type { Subscription } from '../types/subscription'
 import type { Preferences } from '../types/preferences'
 import { groupBySection } from '../services/statusService'
 import SubscriptionCard from './SubscriptionCard'
-import { BanIcon, BellIcon, CheckCircleIcon, ClockIcon, PackageIcon, RadioIcon, SearchIcon } from '../components/icons'
+import { Ban as BanIcon, Bell as BellIcon, CheckCircle as CheckCircleIcon, Clock as ClockIcon, Package as PackageIcon, Radio as RadioIcon, Search as SearchIcon } from 'lucide-react'
 
 type FilterTab = 'all' | 'active' | 'trials' | 'cancel_soon' | 'archived'
 

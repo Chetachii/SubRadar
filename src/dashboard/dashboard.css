@@ -201,6 +201,7 @@ body {
 }
 
 .summary-icon-wrap svg {
+  display: block;
   flex-shrink: 0;
 }
 
