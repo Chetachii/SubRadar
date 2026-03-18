@@ -1,12 +1,8 @@
 export type BillingFrequency = 'one_time' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'unknown'
 
-export type Intent =
-  | 'renew_automatically'
-  | 'remind_before_billing'
-  | 'cancel_before_trial_ends'
-  | 'undecided'
+export type Intent = 'cancel' | 'renew' | 'remind_before_billing'
 
-export type SubscriptionStatus = 'active' | 'cancel_soon' | 'renew_soon' | 'archived' | 'canceled'
+export type SubscriptionStatus = 'active' | 'archived' | 'canceled'
 
 export interface Subscription {
   id: string

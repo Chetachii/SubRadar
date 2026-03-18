@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import type { Intent, BillingFrequency } from '../types/subscription'
-import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, CircleHelp as CircleHelpIcon, Pin as PinIcon, AlertCircle as AlertCircleIcon, ChevronRight as ChevronRightIcon } from 'lucide-react'
+import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon, AlertCircle as AlertCircleIcon, ChevronRight as ChevronRightIcon } from 'lucide-react'
 
 interface Props {
   onSaved: () => void
@@ -25,13 +25,31 @@ interface Errors {
 const INTENT_OPTIONS: {
   value: Intent
   label: string
+  desc: string
   icon: React.ReactElement
-  key: 'cancel' | 'remind' | 'renew' | 'undecided'
+  key: 'cancel' | 'remind' | 'renew'
 }[] = [
-  { value: 'renew_automatically',      label: 'Renew automatically',      icon: <RefreshCwIcon size={16} />,  key: 'renew'     },
-  { value: 'remind_before_billing',    label: 'Remind me before billing', icon: <BellIcon size={16} />,       key: 'remind'   },
-  { value: 'cancel_before_trial_ends', label: 'Cancel before trial ends', icon: <BanIcon size={16} />,        key: 'cancel'   },
-  { value: 'undecided',                label: 'Not now',                  icon: <CircleHelpIcon size={16} />, key: 'undecided' },
+  {
+    value: 'cancel',
+    label: 'Cancel',
+    desc: 'You already plan to cancel this before the next charge. We will send you a reminder 3 days before the renewal date.',
+    icon: <BanIcon size={16} />,
+    key: 'cancel',
+  },
+  {
+    value: 'renew',
+    label: 'Renew',
+    desc: 'You want to keep this subscription and let it continue. This is a heads-up that charge is expected.',
+    icon: <RefreshCwIcon size={16} />,
+    key: 'renew',
+  },
+  {
+    value: 'remind_before_billing',
+    label: 'Remind Before Billing',
+    desc: 'You want a reminder so you can decide later.',
+    icon: <BellIcon size={16} />,
+    key: 'remind',
+  },
 ]
 
 const FREQUENCY_OPTIONS: { value: BillingFrequency; label: string }[] = [
@@ -63,7 +81,7 @@ function validate(form: FormState): Errors {
 
 export default function ManualEntryForm({ onSaved }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY)
-  const [intent, setIntent] = useState<Intent>('cancel_before_trial_ends')
+  const [intent, setIntent] = useState<Intent>('remind_before_billing')
   const [errors, setErrors] = useState<Errors>({})
   const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({})
   const [optionalOpen, setOptionalOpen] = useState(false)
@@ -115,6 +133,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
   }
 
   const hasErrors = Object.values(errors).some(Boolean)
+  const selectedDesc = INTENT_OPTIONS.find((o) => o.value === intent)?.desc
 
   return (
     <>
@@ -160,6 +179,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
               </button>
             ))}
           </div>
+          {selectedDesc && <p className="intent-desc">{selectedDesc}</p>}
         </div>
 
         {/* Billing */}
@@ -223,17 +243,15 @@ export default function ManualEntryForm({ onSaved }: Props) {
               />
             </div>
           </div>
-          {(intent === 'cancel_before_trial_ends' || form.trialEndDate) && (
-            <div className="form-field">
-              <label className="form-label">Trial end date</label>
-              <input
-                className="form-input"
-                type="date"
-                value={form.trialEndDate}
-                onChange={(e) => set('trialEndDate', e.target.value)}
-              />
-            </div>
-          )}
+          <div className="form-field">
+            <label className="form-label">Trial end date</label>
+            <input
+              className="form-input"
+              type="date"
+              value={form.trialEndDate}
+              onChange={(e) => set('trialEndDate', e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Optional fields */}

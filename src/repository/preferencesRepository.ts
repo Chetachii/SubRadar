@@ -11,8 +11,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
 
 export async function getPreferences(): Promise<Preferences> {
   const result = await chrome.storage.local.get(STORAGE_KEY)
-  const stored = result[STORAGE_KEY] as Partial<Preferences> | undefined
-  return { ...DEFAULT_PREFERENCES, ...stored }
+  return { ...DEFAULT_PREFERENCES, ...(result[STORAGE_KEY] as Partial<Preferences> ?? {}) }
 }
 
 export async function updatePreferences(patch: Partial<Preferences>): Promise<Preferences> {

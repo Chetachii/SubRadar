@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import type { Subscription, Intent, BillingFrequency } from '../types/subscription'
+import type { Subscription, Intent } from '../types/subscription'
 import { updateSubscription } from '../services/subscriptionService'
 import { getPreferences } from '../repository/preferencesRepository'
 
@@ -9,21 +9,24 @@ interface Props {
   onClose: () => void
 }
 
-const INTENT_OPTIONS: { value: Intent; label: string }[] = [
-  { value: 'cancel_before_trial_ends', label: 'Cancel before trial ends' },
-  { value: 'remind_before_billing', label: 'Remind me before billing' },
-  { value: 'renew_automatically', label: 'Let it renew automatically' },
-  { value: 'undecided', label: 'Undecided' },
+const INTENT_OPTIONS: { value: Intent; label: string; desc: string }[] = [
+  {
+    value: 'cancel',
+    label: 'Cancel',
+    desc: 'You already plan to cancel this before the next charge. We will send you a reminder 3 days before the renewal date.',
+  },
+  {
+    value: 'renew',
+    label: 'Renew',
+    desc: 'You want to keep this subscription and let it continue. This is a heads-up that charge is expected.',
+  },
+  {
+    value: 'remind_before_billing',
+    label: 'Remind Before Billing',
+    desc: 'You want a reminder so you can decide later.',
+  },
 ]
 
-const FREQUENCY_OPTIONS: { value: BillingFrequency; label: string }[] = [
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'yearly', label: 'Yearly' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'one_time', label: 'One-time' },
-  { value: 'unknown', label: 'Unknown' },
-]
 
 export default function SubscriptionEditor({ subscription: sub, onSave, onClose }: Props) {
   const [serviceName, setServiceName] = useState(sub.serviceName)
@@ -31,9 +34,7 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
   const [trialEndDate, setTrialEndDate] = useState(sub.trialEndDate ?? '')
   const [renewalDate, setRenewalDate] = useState(sub.renewalDate ?? '')
   const [cost, setCost] = useState(sub.cost?.toString() ?? '')
-  const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>(sub.billingFrequency ?? 'monthly')
   const [cancellationUrl, setCancellationUrl] = useState(sub.cancellationUrl ?? '')
-  const [notes, setNotes] = useState(sub.notes ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -62,9 +63,7 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
         trialEndDate: trialEndDate || undefined,
         renewalDate: renewalDate || undefined,
         cost: cost ? parseFloat(cost) : undefined,
-        billingFrequency,
         cancellationUrl: cancellationUrl || undefined,
-        notes: notes || undefined,
       }, prefs)
       onSave()
     } catch (err) {
@@ -73,6 +72,8 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
       setSaving(false)
     }
   }
+
+  const selectedIntentDesc = INTENT_OPTIONS.find((o) => o.value === intent)?.desc
 
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
@@ -83,9 +84,10 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
         <input className="form-input" value={serviceName} onChange={(e) => setServiceName(e.target.value)} />
 
         <label className="form-label">Intent</label>
-        <select className="form-input" value={intent} onChange={(e) => setIntent(e.target.value as Intent)}>
+        <select className="form-input form-input--select" value={intent} onChange={(e) => setIntent(e.target.value as Intent)}>
           {INTENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+        {selectedIntentDesc && <p className="form-hint">{selectedIntentDesc}</p>}
 
         <label className="form-label">Trial end date</label>
         <input className="form-input" type="date" value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)} />
@@ -94,18 +96,13 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
         <input className="form-input" type="date" value={renewalDate} onChange={(e) => setRenewalDate(e.target.value)} />
 
         <label className="form-label">Cost</label>
-        <input className="form-input" type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} />
+        <div className="form-input-prefix-wrap">
+          <span className="form-input-currency">{sub.currency === 'GBP' ? '£' : sub.currency === 'EUR' ? '€' : '$'}</span>
+          <input className="form-input form-input--with-currency" type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} />
+        </div>
 
-        <label className="form-label">Billing frequency</label>
-        <select className="form-input" value={billingFrequency} onChange={(e) => setBillingFrequency(e.target.value as BillingFrequency)}>
-          {FREQUENCY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-
-        <label className="form-label">Cancellation URL</label>
+        <label className="form-label">Cancellation URL <span className="form-label-optional">(optional)</span></label>
         <input className="form-input" value={cancellationUrl} onChange={(e) => setCancellationUrl(e.target.value)} placeholder="https://..." />
-
-        <label className="form-label">Notes</label>
-        <textarea className="form-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
 
         {error && <p className="form-error">{error}</p>}
 

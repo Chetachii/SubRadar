@@ -1,53 +1,37 @@
-import React from 'react'
 import type { Subscription } from '../types/subscription'
-import type { Preferences } from '../types/preferences'
-import { groupBySection } from '../services/statusService'
+import { groupByIntent } from '../services/statusService'
 import SubscriptionCard from './SubscriptionCard'
-import { Ban as BanIcon, Bell as BellIcon, CheckCircle as CheckCircleIcon, Clock as ClockIcon, Package as PackageIcon, Radio as RadioIcon, Search as SearchIcon } from 'lucide-react'
+import { Ban as BanIcon, Bell as BellIcon, RotateCcw as RotateCcwIcon, Radio as RadioIcon, Search as SearchIcon } from 'lucide-react'
 
-type FilterTab = 'all' | 'active' | 'trials' | 'cancel_soon' | 'archived'
+type FilterTab = 'all' | 'cancel' | 'renew' | 'remind_before_billing'
 
 interface Props {
   subscriptions: Subscription[]
-  prefs: Preferences
   filter: FilterTab
   search: string
   onRefresh: () => void
 }
 
-const SECTION_DOT_CLASS: Record<string, string> = {
-  cancelSoon: 'section-dot section-dot--cancel',
-  renewSoon:  'section-dot section-dot--renew',
-  active:     'section-dot section-dot--active',
-  trials:     'section-dot section-dot--trials',
-  archived:   'section-dot section-dot--archived',
-}
-
-const SECTION_EMPTY: Record<string, { icon: React.ReactElement; title: string; hint: string }> = {
-  cancelSoon: {
-    icon: <BanIcon size={24} />,
-    title: 'Nothing to cancel right now',
-    hint: 'Subscriptions you plan to cancel will appear here when their deadline approaches.',
+const EMPTY_STATES: Record<FilterTab, { icon: React.ReactElement; title: string; hint: string }> = {
+  all: {
+    icon: <RadioIcon size={40} />,
+    title: 'No subscriptions tracked yet',
+    hint: 'Click the SubRadar extension icon on any subscription page to start tracking.',
   },
-  renewSoon: {
-    icon: <BellIcon size={24} />,
-    title: 'No renewals coming up',
-    hint: 'Subscriptions renewing soon will show up here.',
+  cancel: {
+    icon: <BanIcon size={40} />,
+    title: 'No subscriptions to cancel',
+    hint: 'Subscriptions you plan to cancel will appear here.',
   },
-  active: {
-    icon: <CheckCircleIcon size={24} />,
-    title: 'No active subscriptions',
-    hint: 'Subscriptions you are actively tracking will appear here.',
+  renew: {
+    icon: <RotateCcwIcon size={40} />,
+    title: 'No subscriptions to renew',
+    hint: 'Subscriptions you want to keep will appear here.',
   },
-  trials: {
-    icon: <ClockIcon size={24} />,
-    title: 'No trials ending soon',
-    hint: 'Free trials expiring within 14 days will appear here.',
-  },
-  archived: {
-    icon: <PackageIcon size={24} />,
-    title: 'Nothing archived yet',
-    hint: 'Subscriptions you archive will be stored here for reference.',
+  remind_before_billing: {
+    icon: <BellIcon size={40} />,
+    title: 'No reminders set',
+    hint: 'Subscriptions you want to decide on later will appear here.',
   },
 }
 
@@ -60,76 +44,32 @@ function matches(sub: Subscription, query: string): boolean {
   )
 }
 
-const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000
+export default function SubscriptionList({ subscriptions, filter, search, onRefresh }: Props) {
+  const groups = groupByIntent(subscriptions)
 
-export default function SubscriptionList({ subscriptions, prefs, filter, search, onRefresh }: Props) {
-  const groups = groupBySection(subscriptions, prefs)
+  const items: Subscription[] =
+    filter === 'cancel' ? groups.cancel :
+    filter === 'renew' ? groups.renew :
+    filter === 'remind_before_billing' ? groups.remindBeforeBilling :
+    [...groups.cancel, ...groups.renew, ...groups.remindBeforeBilling]
 
-  const now = Date.now()
-  const trialsSoon = subscriptions.filter((s) => {
-    if (!s.trialEndDate || s.status === 'archived' || s.status === 'canceled') return false
-    const diff = new Date(s.trialEndDate).getTime() - now
-    return diff >= 0 && diff <= FOURTEEN_DAYS_MS
-  })
+  const filtered = items.filter((item) => matches(item, search))
 
-  const sections: { key: string; label: string; items: Subscription[]; show: boolean }[] = [
-    {
-      key: 'cancelSoon',
-      label: 'Cancel Soon',
-      items: groups.cancelSoon,
-      show: filter === 'all' || filter === 'cancel_soon',
-    },
-    {
-      key: 'renewSoon',
-      label: 'Renew Soon',
-      items: groups.renewSoon,
-      show: filter === 'all' || filter === 'active',
-    },
-    {
-      key: 'trials',
-      label: 'Trials Ending Soon',
-      items: trialsSoon,
-      show: filter === 'all' || filter === 'trials',
-    },
-    {
-      key: 'active',
-      label: 'Active Recurring',
-      items: groups.active,
-      show: filter === 'all' || filter === 'active',
-    },
-    {
-      key: 'archived',
-      label: 'Archived',
-      items: groups.archived,
-      show: filter === 'all' || filter === 'archived',
-    },
-  ]
-
-  const visibleSections = sections.filter((s) => s.show)
-  const hasAnyData = visibleSections.some((s) => s.items.length > 0)
-
-  if (!hasAnyData && !search) {
+  if (items.length === 0 && !search) {
+    const empty = EMPTY_STATES[filter]
     return (
       <div className="empty-state">
-        <div className="empty-state-icon">
-          <RadioIcon size={40} />
-        </div>
-        <p className="empty-state-title">No subscriptions here yet</p>
-        <p className="empty-state-hint">
-          Click the SubRadar extension icon on any subscription page to start tracking.
-        </p>
+        <div className="empty-state-icon">{empty.icon}</div>
+        <p className="empty-state-title">{empty.title}</p>
+        <p className="empty-state-hint">{empty.hint}</p>
       </div>
     )
   }
 
-  const hasAnyResults = visibleSections.some((s) => s.items.some((item) => matches(item, search)))
-
-  if (search && !hasAnyResults) {
+  if (search && filtered.length === 0) {
     return (
       <div className="empty-state">
-        <div className="empty-state-icon">
-          <SearchIcon size={40} />
-        </div>
+        <div className="empty-state-icon"><SearchIcon size={40} /></div>
         <p className="empty-state-title">No results for "{search}"</p>
         <p className="empty-state-hint">Try a different service name or domain.</p>
       </div>
@@ -137,45 +77,15 @@ export default function SubscriptionList({ subscriptions, prefs, filter, search,
   }
 
   return (
-    <div>
-      {visibleSections.map((section) => {
-        const filtered = section.items.filter((item) => matches(item, search))
-        const empty = SECTION_EMPTY[section.key]
-
-        return (
-          <div key={section.key} className="section">
-            <div className="section-header">
-              <h2 className="section-title">
-                <span className={SECTION_DOT_CLASS[section.key]} aria-hidden="true" />
-                {section.label}
-              </h2>
-              <span className="section-count">{filtered.length}</span>
-              <div className="section-divider" />
-            </div>
-
-            {filtered.length === 0 ? (
-              <div className="section-empty">
-                <div className="section-empty-icon" aria-hidden="true">{empty.icon}</div>
-                <p className="section-empty-title">
-                  {search ? `No results for "${search}" in this section` : empty.title}
-                </p>
-                {!search && <p className="section-empty-hint">{empty.hint}</p>}
-              </div>
-            ) : (
-              <div className="section-grid">
-                {filtered.map((sub, index) => (
-                  <SubscriptionCard
-                    key={sub.id}
-                    subscription={sub}
-                    onRefresh={onRefresh}
-                    index={index}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      })}
+    <div className="section-grid">
+      {filtered.map((sub, index) => (
+        <SubscriptionCard
+          key={sub.id}
+          subscription={sub}
+          onRefresh={onRefresh}
+          index={index}
+        />
+      ))}
     </div>
   )
 }

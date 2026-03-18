@@ -832,3 +832,61 @@ This architecture is lean enough for an MVP but structured enough to grow into a
 
 This order ensures the product is usable even before auto-detection becomes strong.
 
+### Product logic update: core intent buckets
+
+The product uses only 3 primary intent buckets:
+
+1. `cancel`
+Meaning: the user already plans to cancel this subscription before the next charge.
+
+Helper text:
+“You already plan to cancel this before the next charge. We will send you a reminder 3 days before the renewal date.”
+
+System behavior:
+- Show under Cancel in dashboard
+- Include in Cancel summary count
+- Send reminder 3 days before renewal date
+- Surface urgent actions like opening cancellation link
+
+2. `renew`
+Meaning: the user wants to keep this subscription and let it continue.
+
+Helper text:
+“You want to keep this subscription and let it continue. This is a heads-up that charge is expected.”
+
+System behavior:
+- Show under Renew in dashboard
+- Include in Renew summary count
+- Send reminder as a heads-up before billing
+- Do not imply the product renews the subscription itself
+
+3. `remind_before_billing`
+Meaning: the user wants a reminder so they can decide later.
+
+Helper text:
+“You want a reminder so you can decide later.”
+
+System behavior:
+- Show under Remind Before Billing in dashboard
+- Include in Remind Before Billing summary count
+- Send reminder before billing as a decision reminder
+- Allow user to switch to Cancel or Renew later
+
+### Dashboard structure update
+
+Top summary cards:
+- Cancel
+- Renew
+- Remind Before Billing
+
+Main tabs:
+- All
+- Cancel
+- Renew
+- Remind Before Billing
+
+Rules:
+- Do not include main dashboard sections
+- Do not include archived items in the MVP dashboard
+- Do not use Active, Trials, Marked for cancellation, Marked for renewal, or Archived as dashboard categories
+- Trial information is supporting metadata only, not a main tab, section, or summary card

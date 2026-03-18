@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
 import type { Subscription } from '../types/subscription'
-import { archiveSubscription, cancelSubscription, markRenewed } from '../services/subscriptionService'
 import { formatCurrency } from '../utils/currency'
 import SubscriptionEditor from './SubscriptionEditor'
-import { Calendar as CalendarIcon, RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, CircleHelp as CircleHelpIcon } from 'lucide-react'
+import { Calendar as CalendarIcon, RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon } from 'lucide-react'
 
 interface Props {
   subscription: Subscription
@@ -11,26 +10,28 @@ interface Props {
   index: number
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  cancel_soon: 'Cancel Soon',
-  renew_soon: 'Renew Soon',
-  active: 'Active',
-  archived: 'Archived',
-  canceled: 'Canceled',
-}
-
 const INTENT_LABELS: Record<string, string> = {
-  cancel_before_trial_ends: 'Cancel before trial',
-  remind_before_billing: 'Remind before billing',
-  renew_automatically: 'Auto-renew',
-  undecided: 'Undecided',
+  cancel: 'Cancel',
+  renew: 'Renew',
+  remind_before_billing: 'Remind Before Billing',
 }
 
 const INTENT_ICON_MAP: Record<string, React.ReactElement> = {
-  cancel_before_trial_ends: <BanIcon size={13} />,
-  remind_before_billing:    <BellIcon size={13} />,
-  renew_automatically:      <RefreshCwIcon size={13} />,
-  undecided:                <CircleHelpIcon size={13} />,
+  cancel:               <BanIcon size={13} />,
+  remind_before_billing: <BellIcon size={13} />,
+  renew:                <RefreshCwIcon size={13} />,
+}
+
+const INTENT_CLASS: Record<string, string> = {
+  cancel:               'sub-intent--cancel',
+  remind_before_billing: 'sub-intent--remind',
+  renew:                'sub-intent--renew',
+}
+
+const INTENT_CARD_CLASS: Record<string, string> = {
+  cancel:               'cancel',
+  renew:                'renew',
+  remind_before_billing: 'remind',
 }
 
 const MONOGRAM_COLORS = [
@@ -69,13 +70,6 @@ function relativeLabel(dateStr: string): { text: string; urgency: 'urgent' | 'so
   return { text: `in ${diff} days`, urgency: null }
 }
 
-const INTENT_CLASS: Record<string, string> = {
-  cancel_before_trial_ends: 'sub-intent--cancel',
-  remind_before_billing:    'sub-intent--remind',
-  renew_automatically:      'sub-intent--renew',
-  undecided:                'sub-intent--undecided',
-}
-
 interface LogoProps {
   name: string
   domain?: string
@@ -109,40 +103,22 @@ function ServiceLogo({ name, domain, bgColor }: LogoProps) {
 export default function SubscriptionCard({ subscription: sub, onRefresh, index }: Props) {
   const [editing, setEditing] = useState(false)
 
-  async function handleArchive() {
-    await archiveSubscription(sub.id)
-    onRefresh()
-  }
-
-  async function handleCancel() {
-    await cancelSubscription(sub.id)
-    onRefresh()
-  }
-
-  async function handleMarkRenewed() {
-    await markRenewed(sub.id)
-    onRefresh()
-  }
-
   const dueDate = sub.renewalDate ?? sub.trialEndDate
   const bgColor = getMonogramColor(sub.serviceName)
-  const staggerDelay = `${index * 50}ms`
+  const staggerDelay = `${Math.min(index * 50, 300)}ms`
+  const cardClass = INTENT_CARD_CLASS[sub.intent] ?? ''
 
   return (
     <>
       <div
-        className={`sub-card sub-card--${sub.status}`}
+        className={`sub-card sub-card--${cardClass}`}
         style={{ animationDelay: staggerDelay }}
       >
         <div className="sub-card-top">
-          <span className={`sub-status-badge sub-status-badge--${sub.status}`}>
-            <span className="status-dot" />
-            {STATUS_LABELS[sub.status]}
-          </span>
           {dueDate && (() => {
             const rel = relativeLabel(dueDate)
             return (
-              <div className="sub-date-block">
+              <div className="sub-date-row">
                 <span className="sub-date-main">
                   <CalendarIcon size={12} aria-hidden="true" />
                   {formatDate(dueDate)}
@@ -181,24 +157,15 @@ export default function SubscriptionCard({ subscription: sub, onRefresh, index }
               )}
             </div>
 
-            <div className={`sub-intent ${INTENT_CLASS[sub.intent] ?? 'sub-intent--undecided'}`}>
-              <span aria-hidden="true">{INTENT_ICON_MAP[sub.intent]}</span>
-              {INTENT_LABELS[sub.intent] ?? sub.intent}
-            </div>
           </div>
         </div>
 
         <div className="sub-actions">
+          <div className={`sub-intent ${INTENT_CLASS[sub.intent] ?? ''}`}>
+            <span aria-hidden="true">{INTENT_ICON_MAP[sub.intent]}</span>
+            {INTENT_LABELS[sub.intent] ?? sub.intent}
+          </div>
           <button className="btn btn--ghost" onClick={() => setEditing(true)}>Edit</button>
-          <button className="btn btn--ghost" onClick={handleMarkRenewed}>Renewed</button>
-          <button className="btn btn--ghost" onClick={handleArchive}>Archive</button>
-          {sub.cancellationUrl && (
-            <a href={sub.cancellationUrl} target="_blank" rel="noreferrer" className="btn btn--link">
-              Cancel page
-            </a>
-          )}
-          <span className="sub-actions-spacer" />
-          <button className="btn btn--danger" onClick={handleCancel}>Cancel</button>
         </div>
       </div>
 

@@ -10,6 +10,7 @@
     "format": "prettier --write src"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.2",
     "@tabler/icons-react": "^3.40.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",

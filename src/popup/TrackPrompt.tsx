@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { DetectionResult, Intent } from '../types/subscription'
-import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, CircleHelp as CircleHelpIcon, Pin as PinIcon } from 'lucide-react'
+import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon } from 'lucide-react'
 
 interface Props {
   result: DetectionResult
@@ -9,15 +9,32 @@ interface Props {
 }
 
 const INTENT_OPTIONS = [
-  { value: 'renew_automatically',      label: 'Renew automatically',      icon: <RefreshCwIcon size={16} />, key: 'renew'     },
-  { value: 'remind_before_billing',    label: 'Remind me before billing', icon: <BellIcon size={16} />,      key: 'remind'    },
-  { value: 'cancel_before_trial_ends', label: 'Cancel before trial ends', icon: <BanIcon size={16} />,       key: 'cancel'    },
-  { value: 'undecided',                label: 'Undecided',                icon: <CircleHelpIcon size={16} />,key: 'undecided' },
-] as const
+  {
+    value: 'cancel' as Intent,
+    label: 'Cancel',
+    desc: 'You already plan to cancel this before the next charge. We will send you a reminder 3 days before the renewal date.',
+    icon: <BanIcon size={16} />,
+    key: 'cancel',
+  },
+  {
+    value: 'renew' as Intent,
+    label: 'Renew',
+    desc: 'You want to keep this subscription and let it continue. This is a heads-up that charge is expected.',
+    icon: <RefreshCwIcon size={16} />,
+    key: 'renew',
+  },
+  {
+    value: 'remind_before_billing' as Intent,
+    label: 'Remind Before Billing',
+    desc: 'You want a reminder so you can decide later.',
+    icon: <BellIcon size={16} />,
+    key: 'remind',
+  },
+]
 
 export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
   const [serviceName, setServiceName] = useState(result.serviceName ?? '')
-  const [intent, setIntent] = useState<Intent>('cancel_before_trial_ends')
+  const [intent, setIntent] = useState<Intent>('remind_before_billing')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,6 +64,8 @@ export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
       setError(response?.error ?? 'Something went wrong.')
     }
   }
+
+  const selectedDesc = INTENT_OPTIONS.find((o) => o.value === intent)?.desc
 
   return (
     <>
@@ -81,13 +100,14 @@ export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
                   `intent-option--${opt.key}`,
                   intent === opt.value ? 'intent-option--selected' : '',
                 ].join(' ')}
-                onClick={() => setIntent(opt.value as Intent)}
+                onClick={() => setIntent(opt.value)}
               >
                 <span className="intent-icon" aria-hidden="true">{opt.icon}</span>
                 <span className="intent-label">{opt.label}</span>
               </button>
             ))}
           </div>
+          {selectedDesc && <p className="intent-desc">{selectedDesc}</p>}
         </div>
       </div>
 
