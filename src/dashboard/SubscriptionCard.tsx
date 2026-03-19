@@ -82,7 +82,7 @@ function ServiceLogo({ name, domain, bgColor }: LogoProps) {
 
   if (domain && !imgFailed) {
     return (
-      <div className="sub-logo" style={{ background: bgColor }} aria-hidden="true">
+      <div className="sub-logo sub-logo--favicon" aria-hidden="true">
         <img
           src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
           alt=""
@@ -114,10 +114,10 @@ export default function SubscriptionCard({ subscription: sub, onRefresh, index }
         className={`sub-card sub-card--${cardClass}`}
         style={{ animationDelay: staggerDelay }}
       >
-        <div className="sub-card-top">
-          {dueDate && (() => {
-            const rel = relativeLabel(dueDate)
-            return (
+        {dueDate && (() => {
+          const rel = relativeLabel(dueDate)
+          return (
+            <div className="sub-card-top">
               <div className="sub-date-row">
                 <span className="sub-date-main">
                   <CalendarIcon size={12} aria-hidden="true" />
@@ -127,9 +127,9 @@ export default function SubscriptionCard({ subscription: sub, onRefresh, index }
                   {rel.text}
                 </span>
               </div>
-            )
-          })()}
-        </div>
+            </div>
+          )
+        })()}
 
         <div className="sub-card-body">
           <ServiceLogo name={sub.serviceName} domain={sub.sourceDomain} bgColor={bgColor} />

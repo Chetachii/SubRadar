@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import type { Subscription, Intent } from '../types/subscription'
 import { updateSubscription } from '../services/subscriptionService'
 import { getPreferences } from '../repository/preferencesRepository'
+import { X as XIcon } from 'lucide-react'
+import { CURRENCIES } from '../utils/currency'
 
 interface Props {
   subscription: Subscription
@@ -34,22 +36,12 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
   const [trialEndDate, setTrialEndDate] = useState(sub.trialEndDate ?? '')
   const [renewalDate, setRenewalDate] = useState(sub.renewalDate ?? '')
   const [cost, setCost] = useState(sub.cost?.toString() ?? '')
-  const [cancellationUrl, setCancellationUrl] = useState(sub.cancellationUrl ?? '')
+  const [currency, setCurrency] = useState(
+    CURRENCIES.find((c) => c.code === sub.currency) ? (sub.currency ?? 'USD') : 'USD'
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
-
-  function handleOverlayClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
-  }
 
   async function handleSave() {
     if (!serviceName.trim()) { setError('Service name is required.'); return }
@@ -63,7 +55,7 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
         trialEndDate: trialEndDate || undefined,
         renewalDate: renewalDate || undefined,
         cost: cost ? parseFloat(cost) : undefined,
-        cancellationUrl: cancellationUrl || undefined,
+        currency,
       }, prefs)
       onSave()
     } catch (err) {
@@ -76,9 +68,21 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
   const selectedIntentDesc = INTENT_OPTIONS.find((o) => o.value === intent)?.desc
 
   return (
-    <div className="modal-overlay" onClick={handleOverlayClick}>
-      <div className="modal-panel" ref={panelRef} role="dialog" aria-label="Edit subscription">
-        <h3 className="modal-heading">Edit subscription</h3>
+    <div className="modal-overlay" role="presentation" aria-hidden="true">
+      <div
+        className="modal-panel"
+        ref={panelRef}
+        role="dialog"
+        aria-label="Edit subscription"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h3 className="modal-heading">Edit subscription</h3>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+            <XIcon size={18} aria-hidden="true" />
+          </button>
+        </div>
 
         <label className="form-label">Service name</label>
         <input className="form-input" value={serviceName} onChange={(e) => setServiceName(e.target.value)} />
@@ -97,12 +101,18 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
 
         <label className="form-label">Cost</label>
         <div className="form-input-prefix-wrap">
-          <span className="form-input-currency">{sub.currency === 'GBP' ? '£' : sub.currency === 'EUR' ? '€' : '$'}</span>
+          <select
+            className="form-currency-select"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            aria-label="Currency"
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
+            ))}
+          </select>
           <input className="form-input form-input--with-currency" type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} />
         </div>
-
-        <label className="form-label">Cancellation URL <span className="form-label-optional">(optional)</span></label>
-        <input className="form-input" value={cancellationUrl} onChange={(e) => setCancellationUrl(e.target.value)} placeholder="https://..." />
 
         {error && <p className="form-error">{error}</p>}
 

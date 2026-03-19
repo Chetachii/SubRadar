@@ -890,3 +890,96 @@ Rules:
 - Do not include archived items in the MVP dashboard
 - Do not use Active, Trials, Marked for cancellation, Marked for renewal, or Archived as dashboard categories
 - Trial information is supporting metadata only, not a main tab, section, or summary card
+
+## Product Direction Update: Trial-First Positioning
+
+SubRadar is primarily a trial-first product, not a general subscription logging tool.
+
+The main user moment is when someone is about to try a new product, start a free trial, or enter card details for a subscription and wants help remembering their intent before billing begins.
+
+This means the primary use case is:
+
+- a user is about to subscribe to or start a free trial for a product
+- the user wants to track that moment
+- the user wants a reminder before the trial converts or before the first charge happens
+- the user wants to decide whether to cancel, renew, or review later
+
+SubRadar is not primarily designed around users manually logging old or already-active subscriptions. Manual entry still exists, but it is a fallback, not the core story.
+
+### Secondary use case: manually tracking existing subscriptions
+
+Although SubRadar is primarily a trial-first product, users can still manually add existing subscriptions they already have.
+
+This supports users who want to:
+- keep track of an existing subscription
+- remember their intent for that subscription
+- get notified before the next charge
+
+This is a secondary use case, not the primary product story.
+
+SubRadar should remain positioned around free trials and new subscription signups, while still supporting manual tracking of existing subscriptions as a fallback and utility feature.
+
+### Updated product framing
+
+SubRadar is a Chrome extension that helps users track free trials and subscription signups, remember their intent, and get reminded before billing starts.
+
+### Implications for MVP
+
+- Auto-detect remains the main product focus
+- The product should prioritize trial and signup moments over generic subscription management
+- Manual tracking is a fallback when auto-detect does not catch the subscription moment
+- The reminder system should focus on upcoming trial conversion or billing dates
+
+### Implications for form design
+
+The form should be optimized for trial-first behavior.
+
+Primary fields:
+- Service name
+- Intent
+- Is this a free trial? (Yes / No)
+- Renewal date
+
+Conditional fields:
+- Trial end date (shown only if the user selects Yes for free trial)
+
+Secondary fields:
+- Cost
+
+### Trial-first form logic
+
+Add a simple question in the form:
+
+**Is this a free trial?**
+- Yes
+- No
+
+Rules:
+- If **Yes**, show **Trial end date**
+- If **No**, hide **Trial end date**
+- Renewal date should still be captured because it represents when billing starts or when the next charge happens
+- In many cases, trial end date and renewal date may be the same
+
+### Date logic
+
+Trial end date:
+- the date the free trial ends
+
+Renewal date:
+- the date the paid billing starts or the next charge happens
+
+Notes:
+- In many cases, the trial end date and renewal date may be the same
+- Renewal date remains the main reminder date for billing
+- Trial end date provides context when the user is still in the free trial period
+
+### UX logic
+
+The product should assume that many users are tracking a new product trial, not an existing long-term subscription.
+
+The interface and copy should reflect:
+- trying a product
+- entering card details
+- avoiding unexpected billing
+- deciding what to do before the charge happens
+```

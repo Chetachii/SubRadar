@@ -450,6 +450,7 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  padding-top: 8px;
   transition:
     transform var(--duration-normal) var(--ease-out-expo),
     box-shadow var(--duration-normal) var(--ease-out-expo);
@@ -468,10 +469,10 @@ body {
 
 .sub-card-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-5) var(--space-2);
+  padding: 14px 20px 10px;
 }
 
 .sub-date-row {
@@ -485,16 +486,18 @@ body {
 .sub-date-main {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 12px;
   font-weight: var(--weight-medium);
   color: var(--color-text-secondary);
+  line-height: 1.45;
 }
 
 .sub-date-rel {
   font-size: 11px;
   color: var(--color-text-tertiary);
   text-align: right;
+  line-height: 1.45;
 }
 
 .sub-date-rel--urgent { color: var(--color-cancel); }
@@ -504,8 +507,9 @@ body {
   display: flex;
   gap: var(--space-4);
   align-items: flex-start;
-  padding: 0 var(--space-5) var(--space-4);
+  padding: 12px 20px 16px;
   flex: 1;
+  min-height: 0;
 }
 
 .sub-monogram,
@@ -530,6 +534,11 @@ body {
 
 .sub-logo {
   overflow: hidden;
+}
+
+.sub-logo--favicon {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
 }
 
 .sub-logo-img {
@@ -573,8 +582,9 @@ body {
 .sub-domain {
   font-size: 12px;
   color: var(--color-text-tertiary);
-  margin-top: 1px;
-  margin-bottom: var(--space-3);
+  margin-top: 4px;
+  margin-bottom: 12px;
+  line-height: 1.4;
 }
 
 .sub-domain-dot {
@@ -584,7 +594,7 @@ body {
 .sub-card-divider {
   height: 1px;
   background: var(--color-border-subtle);
-  margin: 0 0 var(--space-3);
+  margin: 0 0 12px;
 }
 
 .sub-meta {
@@ -593,7 +603,7 @@ body {
   align-items: flex-end;
   column-gap: var(--space-3);
   row-gap: 2px;
-  margin-bottom: var(--space-3);
+  margin: 0;
 }
 
 .sub-meta-item {
@@ -691,7 +701,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-5);
+  padding: 14px 20px;
   border-top: 1px solid var(--color-border-subtle);
   background: var(--color-ground);
 }
@@ -974,8 +984,8 @@ body {
 
 .modal-panel {
   background: var(--color-surface);
-  border-radius: var(--radius-xl);
-  padding: var(--space-6);
+  border-radius: 20px;
+  padding: var(--space-5) var(--space-6) var(--space-6);
   width: 420px;
   max-width: 95vw;
   max-height: 90vh;
@@ -984,11 +994,45 @@ body {
   animation: modalEntry 300ms var(--ease-out-expo) both;
 }
 
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
 .modal-heading {
   font-family: var(--font-display);
   font-size: 18px;
   font-weight: var(--weight-bold);
-  margin: 0 0 var(--space-5);
+  margin: 0;
+  padding-top: 2px;
+  color: var(--color-text-primary);
+  line-height: 1.25;
+}
+
+.modal-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: -4px -8px 0 0;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.modal-close:hover {
+  background: var(--color-border-subtle);
   color: var(--color-text-primary);
 }
 
@@ -1038,25 +1082,49 @@ body {
   background-position: right 12px center;
 }
 
-/* Prefix wrapper (position context for currency symbol) */
+/* Prefix wrapper — flex row containing currency select + amount input */
 .form-input-prefix-wrap {
-  position: relative;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 
-/* Currency prefix on cost input */
-.form-input-currency {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 14px;
+.form-input-prefix-wrap:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-currency-select {
+  appearance: none;
+  border: none;
+  border-right: 1px solid var(--color-border);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background: var(--color-ground);
+  padding: 0 10px;
+  font-size: 13px;
   font-weight: var(--weight-medium);
-  color: var(--color-text-tertiary);
-  pointer-events: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
 }
 
 .form-input--with-currency {
-  padding-left: 26px;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.form-input--with-currency:focus {
+  border: none;
+  box-shadow: none;
+  outline: none;
 }
 
 /* Optional label suffix */
@@ -1089,6 +1157,41 @@ textarea.form-input {
   gap: var(--space-2);
   justify-content: flex-end;
   padding-top: var(--space-2);
+}
+
+/* Trial toggle in modal */
+.trial-toggle--modal {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--space-3);
+}
+
+.trial-toggle-btn {
+  flex: 1;
+  padding: 8px 0;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.trial-toggle-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.trial-toggle-btn--active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 
@@ -1148,18 +1251,30 @@ textarea.form-input {
 
   .sub-card-body {
     flex-direction: column;
+    align-items: stretch;
     gap: var(--space-3);
+    padding: 14px 16px 16px;
+  }
+
+  .sub-card-top {
+    padding: 12px 16px 8px;
+  }
+
+  .sub-card-body .sub-logo,
+  .sub-card-body .sub-monogram {
+    align-self: center;
+  }
+
+  .sub-actions {
+    padding: 12px 16px;
+    opacity: 1;
+    transform: translateY(0);
   }
 
   .sub-monogram {
     width: 36px;
     height: 36px;
     font-size: 14px;
-  }
-
-  .sub-actions {
-    opacity: 1;
-    transform: translateY(0);
   }
 
   .filter-bar {

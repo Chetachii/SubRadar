@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
-import type { Intent, BillingFrequency } from '../types/subscription'
-import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon, AlertCircle as AlertCircleIcon, ChevronRight as ChevronRightIcon } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import type { Intent } from '../types/subscription'
+import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon, AlertCircle as AlertCircleIcon } from 'lucide-react'
+import { CURRENCIES } from '../utils/currency'
 
 interface Props {
   onSaved: () => void
@@ -8,13 +9,10 @@ interface Props {
 
 interface FormState {
   serviceName: string
+  website: string
   price: string
-  billingFrequency: BillingFrequency
-  subscriptionDate: string
-  trialEndDate: string
   renewalDate: string
-  cancellationUrl: string
-  notes: string
+  trialEndDate: string
 }
 
 interface Errors {
@@ -45,31 +43,32 @@ const INTENT_OPTIONS: {
   },
   {
     value: 'remind_before_billing',
-    label: 'Remind Before Billing',
+    label: 'Remind me',
     desc: 'You want a reminder so you can decide later.',
     icon: <BellIcon size={16} />,
     key: 'remind',
   },
 ]
 
-const FREQUENCY_OPTIONS: { value: BillingFrequency; label: string }[] = [
-  { value: 'monthly',   label: 'Monthly'   },
-  { value: 'yearly',    label: 'Yearly'    },
-  { value: 'weekly',    label: 'Weekly'    },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'one_time',  label: 'One-time'  },
-  { value: 'unknown',   label: 'Unknown'   },
-]
+const TODAY = new Date().toISOString().split('T')[0]
 
 const EMPTY: FormState = {
   serviceName: '',
+  website: '',
   price: '',
-  billingFrequency: 'monthly',
-  subscriptionDate: '',
-  trialEndDate: '',
   renewalDate: '',
-  cancellationUrl: '',
-  notes: '',
+  trialEndDate: '',
+}
+
+function extractDomain(website: string): string | undefined {
+  const s = website.trim()
+  if (!s) return undefined
+  try {
+    const url = s.includes('://') ? s : `https://${s}`
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return undefined
+  }
 }
 
 function validate(form: FormState): Errors {
@@ -82,14 +81,45 @@ function validate(form: FormState): Errors {
 export default function ManualEntryForm({ onSaved }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY)
   const [intent, setIntent] = useState<Intent>('remind_before_billing')
+  const [currency, setCurrency] = useState('USD')
+  const [isFreeTrial, setIsFreeTrial] = useState(true)
   const [errors, setErrors] = useState<Errors>({})
   const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({})
-  const [optionalOpen, setOptionalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [websiteManuallyEdited, setWebsiteManuallyEdited] = useState(false)
+  const [websiteLooking, setWebsiteLooking] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (websiteManuallyEdited) return
+    const name = form.serviceName.trim()
+    if (!name) { setForm((prev) => ({ ...prev, website: '' })); return }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setWebsiteLooking(true)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(name)}`
+        )
+        const results = await res.json() as { name: string; domain: string }[]
+        if (results.length > 0) {
+          setForm((prev) => ({ ...prev, website: results[0].domain }))
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setWebsiteLooking(false)
+      }
+    }, 400)
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [form.serviceName, websiteManuallyEdited])
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     const next = { ...form, [key]: value }
+    if (key === 'website') setWebsiteManuallyEdited(true)
     setForm(next)
     if (touched[key]) {
       const errs = validate(next)
@@ -113,40 +143,48 @@ export default function ManualEntryForm({ onSaved }: Props) {
     setSaving(true)
     setSubmitError(null)
 
-    // Mocked submit — swap for chrome.runtime.sendMessage in production
-    await new Promise((r) => setTimeout(r, 600))
-    console.log('SAVE_SUBSCRIPTION', {
-      serviceName: form.serviceName.trim(),
-      intent,
-      detectionSource: 'manual_entry' as const,
-      cost: form.price ? parseFloat(form.price) : undefined,
-      billingFrequency: form.billingFrequency,
-      subscriptionDate: form.subscriptionDate || undefined,
-      trialEndDate: form.trialEndDate || undefined,
-      renewalDate: form.renewalDate || undefined,
-      cancellationUrl: form.cancellationUrl || undefined,
-      notes: form.notes || undefined,
-    })
-
-    setSaving(false)
-    onSaved()
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SAVE_SUBSCRIPTION',
+        payload: {
+          serviceName: form.serviceName.trim(),
+          sourceDomain: extractDomain(form.website),
+          intent,
+          isFreeTrial,
+          detectionSource: 'manual_entry' as const,
+          cost: form.price ? parseFloat(form.price) : undefined,
+          currency,
+          subscriptionDate: TODAY,
+          renewalDate: form.renewalDate || undefined,
+          trialEndDate: isFreeTrial ? (form.trialEndDate || undefined) : undefined,
+        },
+      })
+      if (response?.error) throw new Error(response.error)
+      onSaved()
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const hasErrors = Object.values(errors).some(Boolean)
   const selectedDesc = INTENT_OPTIONS.find((o) => o.value === intent)?.desc
 
   return (
     <>
-      <div className="popup-body">
+      <div className="popup-body popup-body--airy">
+        <header className="popup-intro">
+          <h2 className="popup-lead-title">Track a free trial or subscription</h2>
+          <p className="popup-lead-sub">Set your intent and add a renewal date so we can remind you before billing starts.</p>
+        </header>
 
-        {/* Service name */}
-        <div className="form-section">
-          <div className="form-field">
-            <label className="form-label">
+        <section className="popup-card" aria-labelledby="label-service">
+          <div className="form-field form-field--spaced">
+            <label className="form-label form-label--primary" id="label-service">
               Service name <span className="form-label-required">*</span>
             </label>
             <input
-              className={`form-input${errors.serviceName && touched.serviceName ? ' form-input--error' : ''}`}
+              className={`form-input form-input--comfort${errors.serviceName && touched.serviceName ? ' form-input--error' : ''}`}
               placeholder="e.g. Spotify, Adobe CC…"
               value={form.serviceName}
               onChange={(e) => set('serviceName', e.target.value)}
@@ -157,18 +195,31 @@ export default function ManualEntryForm({ onSaved }: Props) {
               <p className="form-error-msg">{errors.serviceName}</p>
             )}
           </div>
-        </div>
+        </section>
 
-        {/* Intent */}
-        <div className="form-section">
-          <p className="form-section-title">What do you want to do?</p>
-          <div className="intent-grid">
+        <section className="popup-card" aria-labelledby="label-website">
+          <div className="form-field form-field--spaced">
+            <label className="form-label form-label--primary" id="label-website">
+              Website <span className="form-label-optional-inline">(optional)</span>
+            </label>
+            <input
+              className="form-input form-input--comfort"
+              placeholder={websiteLooking ? 'Looking up…' : 'e.g. cursor.com'}
+              value={form.website}
+              onChange={(e) => set('website', e.target.value)}
+            />
+          </div>
+        </section>
+
+        <section className="popup-card" aria-labelledby="label-intent">
+          <p className="form-section-heading" id="label-intent">What do you want to do?</p>
+          <div className="intent-grid intent-grid--airy">
             {INTENT_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 className={[
-                  'intent-option',
+                  'intent-option intent-option--airy',
                   `intent-option--${opt.key}`,
                   intent === opt.value ? 'intent-option--selected' : '',
                 ].join(' ')}
@@ -179,137 +230,105 @@ export default function ManualEntryForm({ onSaved }: Props) {
               </button>
             ))}
           </div>
-          {selectedDesc && <p className="intent-desc">{selectedDesc}</p>}
-        </div>
+          {selectedDesc && (
+            <p className="intent-desc intent-desc--airy">{selectedDesc}</p>
+          )}
+        </section>
 
-        {/* Billing */}
-        <div className="form-section">
-          <p className="form-section-title">Billing</p>
-          <div className="form-row">
-            <div className="form-field">
-              <label className="form-label">Price</label>
-              <div className="form-input-prefix-wrap">
-                <span className="form-input-prefix">$</span>
-                <input
-                  className={`form-input form-input--prefixed${errors.price && touched.price ? ' form-input--error' : ''}`}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.price}
-                  onChange={(e) => set('price', e.target.value)}
-                  onBlur={() => blur('price')}
-                />
-              </div>
-              {errors.price && touched.price && (
-                <p className="form-error-msg">{errors.price}</p>
-              )}
-            </div>
-            <div className="form-field">
-              <label className="form-label">Frequency</label>
-              <select
-                className="form-input"
-                value={form.billingFrequency}
-                onChange={(e) => set('billingFrequency', e.target.value as BillingFrequency)}
-              >
-                {FREQUENCY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
+        <section className="popup-card" aria-labelledby="label-trial">
+          <p className="form-section-heading" id="label-trial">Is this a free trial?</p>
+          <div className="trial-toggle">
+            <button
+              type="button"
+              className={`trial-toggle-btn${isFreeTrial ? ' trial-toggle-btn--active' : ''}`}
+              onClick={() => setIsFreeTrial(true)}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              className={`trial-toggle-btn${!isFreeTrial ? ' trial-toggle-btn--active' : ''}`}
+              onClick={() => setIsFreeTrial(false)}
+            >
+              No
+            </button>
           </div>
-        </div>
+        </section>
 
-        {/* Dates */}
-        <div className="form-section">
-          <p className="form-section-title">Dates</p>
-          <div className="form-row">
-            <div className="form-field">
-              <label className="form-label">Subscription date</label>
-              <input
-                className="form-input"
-                type="date"
-                value={form.subscriptionDate}
-                onChange={(e) => set('subscriptionDate', e.target.value)}
-              />
-            </div>
-            <div className="form-field">
-              <label className="form-label">Renewal date</label>
-              <input
-                className="form-input"
-                type="date"
-                value={form.renewalDate}
-                onChange={(e) => set('renewalDate', e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="form-field">
-            <label className="form-label">Trial end date</label>
+        <section className="popup-card" aria-labelledby="label-dates">
+          <p className="form-section-heading" id="label-dates">Dates</p>
+          <div className="form-field form-field--spaced">
+            <label className="form-label form-label--primary">Renewal date</label>
             <input
-              className="form-input"
+              className="form-input form-input--comfort"
               type="date"
-              value={form.trialEndDate}
-              onChange={(e) => set('trialEndDate', e.target.value)}
+              value={form.renewalDate}
+              onChange={(e) => set('renewalDate', e.target.value)}
             />
+            <p className="form-hint-inline">The date billing starts or the next charge happens.</p>
           </div>
-        </div>
-
-        {/* Optional fields */}
-        <div className="form-section">
-          <button
-            type="button"
-            className="optional-toggle"
-            onClick={() => setOptionalOpen((v) => !v)}
-            aria-expanded={optionalOpen}
-          >
-            <span className={`optional-toggle-icon${optionalOpen ? ' optional-toggle-icon--open' : ''}`}>
-              <ChevronRightIcon size={12} />
-            </span>
-            Optional details
-            <span className="optional-divider" />
-          </button>
-
-          {optionalOpen && (
-            <div className="optional-fields">
-              <div className="form-field">
-                <label className="form-label">Cancellation URL</label>
-                <input
-                  className="form-input"
-                  type="url"
-                  placeholder="https://…"
-                  value={form.cancellationUrl}
-                  onChange={(e) => set('cancellationUrl', e.target.value)}
-                />
-              </div>
-              <div className="form-field">
-                <label className="form-label">Notes</label>
-                <textarea
-                  className="form-input"
-                  placeholder="Anything worth remembering…"
-                  value={form.notes}
-                  onChange={(e) => set('notes', e.target.value)}
-                />
-              </div>
+          {isFreeTrial && (
+            <div className="form-field form-field--spaced form-field--mt">
+              <label className="form-label form-label--primary">Trial end date <span className="form-label-optional-inline">(optional)</span></label>
+              <input
+                className="form-input form-input--comfort"
+                type="date"
+                value={form.trialEndDate}
+                onChange={(e) => set('trialEndDate', e.target.value)}
+              />
+              <p className="form-hint-inline">Often the same as the renewal date.</p>
             </div>
           )}
-        </div>
+        </section>
+
+        <section className="popup-card" aria-labelledby="label-cost">
+          <div className="form-field form-field--spaced">
+            <label className="form-label form-label--primary" id="label-cost">
+              Cost <span className="form-label-optional-inline">(optional)</span>
+            </label>
+            <div className="form-input-prefix-wrap">
+              <select
+                className="form-currency-select"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                aria-label="Currency"
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
+                ))}
+              </select>
+              <input
+                className={`form-input form-input--comfort form-input--prefixed-wide${errors.price && touched.price ? ' form-input--error' : ''}`}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={form.price}
+                onChange={(e) => set('price', e.target.value)}
+                onBlur={() => blur('price')}
+              />
+            </div>
+            {errors.price && touched.price && (
+              <p className="form-error-msg">{errors.price}</p>
+            )}
+          </div>
+        </section>
 
         {submitError && (
-          <div className="form-banner--error">
+          <div className="form-banner--error form-banner--airy">
             <AlertCircleIcon size={14} aria-hidden="true" />
             {submitError}
           </div>
         )}
-
       </div>
 
-      <div className="popup-footer">
+      <div className="popup-footer popup-footer--airy">
         <button
-          className="btn-submit"
+          className="btn-submit btn-submit--airy"
           onClick={handleSubmit}
-          disabled={saving || hasErrors}
+          disabled={saving || websiteLooking}
         >
-          {saving ? 'Saving…' : <><PinIcon size={14} aria-hidden="true" /> Track subscription</>}
+          {saving ? 'Saving…' : <><PinIcon size={15} aria-hidden="true" /> Track it</>}
         </button>
       </div>
     </>

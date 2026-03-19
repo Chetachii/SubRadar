@@ -8,6 +8,7 @@ export interface Subscription {
   id: string
   serviceName: string
   sourceDomain?: string
+  isFreeTrial?: boolean
   subscriptionDate?: string
   trialEndDate?: string
   renewalDate?: string
@@ -15,7 +16,6 @@ export interface Subscription {
   cost?: number
   currency?: string
   billingFrequency?: BillingFrequency
-  cancellationUrl?: string
   intent: Intent
   status: SubscriptionStatus
   notes?: string

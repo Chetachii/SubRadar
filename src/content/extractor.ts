@@ -33,9 +33,10 @@ function extractPrice(): number | undefined {
 
 function extractCurrency(): string | undefined {
   const text = document.body?.innerText ?? ''
-  if (text.includes('$') || text.toLowerCase().includes('usd')) return 'USD'
-  if (text.includes('€') || text.toLowerCase().includes('eur')) return 'EUR'
+  if (text.includes('₦') || text.toLowerCase().includes('ngn')) return 'NGN'
   if (text.includes('£') || text.toLowerCase().includes('gbp')) return 'GBP'
+  if (text.includes('€') || text.toLowerCase().includes('eur')) return 'EUR'
+  if (text.includes('$') || text.toLowerCase().includes('usd')) return 'USD'
   return undefined
 }
 

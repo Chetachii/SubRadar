@@ -7,9 +7,8 @@ import { addDays, today } from '../utils/dates'
 import { formatCurrency } from '../utils/currency'
 
 export const NOTIF_ACTION = {
-  OPEN_CANCEL: 0,
-  SNOOZE: 1,
-  MARK_RENEWED: 2,
+  SNOOZE: 0,
+  MARK_RENEWED: 1,
 }
 
 export function buildNotificationOptions(
@@ -22,7 +21,6 @@ export function buildNotificationOptions(
     title: `SubRadar: ${sub.serviceName}`,
     message: `Renewal coming up${costStr}. Time to decide.`,
     buttons: [
-      { title: 'Open cancellation page' },
       { title: 'Snooze 24h' },
       { title: 'Mark renewed' },
     ],
@@ -55,19 +53,11 @@ export async function handleNotificationButtonClick(
 ): Promise<void> {
   const subId = notifId.replace('subradar-', '')
 
-  if (buttonIndex === NOTIF_ACTION.OPEN_CANCEL) {
-    const subs = await listSubscriptions()
-    const sub = subs.find((s) => s.id === subId)
-    if (sub?.cancellationUrl) {
-      chrome.tabs.create({ url: sub.cancellationUrl })
-    }
-  } else if (buttonIndex === NOTIF_ACTION.SNOOZE) {
+  if (buttonIndex === NOTIF_ACTION.SNOOZE) {
     const snoozeUntil = addDays(today(), 1)
     await subscriptionService.setSnooze(subId, snoozeUntil)
   } else if (buttonIndex === NOTIF_ACTION.MARK_RENEWED) {
-    const prefs = await getPreferences()
     await subscriptionService.markRenewed(subId)
-    void prefs // used for future renewal date logic
   }
 
   chrome.notifications.clear(notifId)

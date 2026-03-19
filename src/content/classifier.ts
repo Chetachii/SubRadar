@@ -1,4 +1,4 @@
-export const CONFIDENCE_THRESHOLD = 5
+export const CONFIDENCE_THRESHOLD = 7
 
 interface ClassifierResult {
   score: number
@@ -36,6 +36,18 @@ const PRICING_SIGNALS = [
 ]
 
 const CHECKOUT_PROVIDERS = ['stripe.com', 'paddle.com', 'gumroad.com', 'recurly.com']
+
+// Phrases that indicate device financing / installment plans — not subscriptions
+const FINANCING_PHRASES = [
+  'installment',
+  'financing',
+  'payment plan',
+  '0% apr',
+  '0% interest',
+  'monthly payment',
+  'finance your',
+  'apply for financing',
+]
 
 export function classifyPage(): ClassifierResult {
   const signals: string[] = []
@@ -80,6 +92,14 @@ export function classifyPage(): ClassifierResult {
     if (url.includes(provider) || combined.includes(provider)) {
       score += 3
       signals.push('checkout_provider')
+      break
+    }
+  }
+
+  for (const phrase of FINANCING_PHRASES) {
+    if (combined.includes(phrase)) {
+      score -= 4
+      signals.push('financing_negative')
       break
     }
   }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import type { Subscription } from '../types/subscription'
-import { listSubscriptions } from '../repository/subscriptionRepository'
+import { listSubscriptions, createSubscription, deleteSubscription } from '../repository/subscriptionRepository'
 import SubscriptionList from './SubscriptionList'
 import { Ban as BanIcon, Bell as BellIcon, RotateCcw as RotateCcwIcon, X as XIcon, Search as SearchIcon } from 'lucide-react'
 
@@ -75,44 +75,44 @@ export default function Dashboard() {
       d.setDate(d.getDate() + n)
       return d.toISOString().split('T')[0]
     }
-    const now = new Date().toISOString()
-    const data: Subscription[] = [
-      { id: crypto.randomUUID(), createdAt: now, updatedAt: now,
-        serviceName: 'Adobe Creative Cloud', sourceDomain: 'adobe.com',
+    const seeds: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>[] = [
+      { serviceName: 'Adobe Creative Cloud', sourceDomain: 'adobe.com',
         cost: 54.99, currency: 'USD', billingFrequency: 'monthly',
         renewalDate: addDays(3), intent: 'cancel', status: 'active',
         detectionSource: 'auto_detected' },
-      { id: crypto.randomUUID(), createdAt: now, updatedAt: now,
-        serviceName: 'Spotify', sourceDomain: 'spotify.com',
+      { serviceName: 'Spotify', sourceDomain: 'spotify.com',
         cost: 9.99, currency: 'USD', billingFrequency: 'monthly',
         renewalDate: addDays(5), intent: 'remind_before_billing', status: 'active',
         detectionSource: 'auto_detected' },
-      { id: crypto.randomUUID(), createdAt: now, updatedAt: now,
-        serviceName: 'GitHub Copilot', sourceDomain: 'github.com',
+      { serviceName: 'GitHub Copilot', sourceDomain: 'github.com',
         cost: 10.00, currency: 'USD', billingFrequency: 'monthly',
         trialEndDate: addDays(10), renewalDate: addDays(12), intent: 'cancel', status: 'active',
         detectionSource: 'auto_detected' },
-      { id: crypto.randomUUID(), createdAt: now, updatedAt: now,
-        serviceName: 'Netflix', sourceDomain: 'netflix.com',
+      { serviceName: 'Netflix', sourceDomain: 'netflix.com',
         cost: 15.99, currency: 'USD', billingFrequency: 'monthly',
         renewalDate: addDays(28), intent: 'renew', status: 'active',
         detectionSource: 'manual_entry' },
-      { id: crypto.randomUUID(), createdAt: now, updatedAt: now,
-        serviceName: 'Hulu', sourceDomain: 'hulu.com',
+      { serviceName: 'Hulu', sourceDomain: 'hulu.com',
         cost: 7.99, currency: 'USD', billingFrequency: 'monthly',
         renewalDate: addDays(20), intent: 'remind_before_billing', status: 'active',
         detectionSource: 'auto_detected' },
     ]
-    await chrome.storage.local.set({ subscriptions: data })
+    await Promise.all(seeds.map(createSubscription))
     load()
   }
 
   async function clearTestData() {
-    await chrome.storage.local.set({ subscriptions: [] })
+    const subs = await listSubscriptions()
+    await Promise.all(subs.map((s) => deleteSubscription(s.id)))
     load()
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
 
   const summary = useMemo(() => {
     const live = subscriptions.filter((s) => s.status !== 'archived' && s.status !== 'canceled')
@@ -133,7 +133,7 @@ export default function Dashboard() {
         <div className="dashboard-header-row">
           <div>
             <h1 className="dashboard-title">SubRadar</h1>
-            <p className="dashboard-subtitle">Track, manage, and stay ahead of your subscriptions</p>
+            <p className="dashboard-subtitle">Track free trials and subscriptions. Stay ahead of billing.</p>
           </div>
           <div className="dev-tools">
             <button className="btn btn--ghost" onClick={seedTestData}>Seed test data</button>
