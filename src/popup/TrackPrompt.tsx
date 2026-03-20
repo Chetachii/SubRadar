@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { DetectionResult, Intent } from '../types/subscription'
-import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon } from 'lucide-react'
+import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon, ChevronDown as ChevronDownIcon } from 'lucide-react'
 import { CURRENCIES } from '../utils/currency'
 
 interface Props {
@@ -33,23 +33,11 @@ const INTENT_OPTIONS = [
   },
 ]
 
-function formatPriceDisplay(
-  price: number | undefined,
-  currency: string | undefined,
-  billingFrequency: string | undefined,
-): string | null {
-  if (price == null) return null
-  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : (currency ?? '$')
-  const formatted = `${symbol}${price.toFixed(2)}`
-  if (billingFrequency === 'monthly') return `${formatted}/mo`
-  if (billingFrequency === 'yearly') return `${formatted}/yr`
-  return formatted
-}
 
 export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
   const [serviceName, setServiceName] = useState(result.serviceName ?? '')
   const [website, setWebsite] = useState(result.pageUrl ?? '')
-  const [intent, setIntent] = useState<Intent>('remind_before_billing')
+  const [intent, setIntent] = useState<Intent | null>(null)
   const [isFreeTrial, setIsFreeTrial] = useState(
     result.trialDurationDays !== undefined && result.trialDurationDays > 0,
   )
@@ -67,37 +55,44 @@ export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
     ? `Looks like you're signing up for ${result.serviceName}`
     : 'Track this subscription with SubRadar?'
 
-  const priceDisplay = formatPriceDisplay(result.price, result.currency, result.billingFrequency)
 
   async function handleSave() {
     if (!serviceName.trim()) {
       setFieldError('Service name is required.')
       return
     }
+    if (!intent) {
+      setFieldError('Please select what you want to do.')
+      return
+    }
     setFieldError(null)
     setSaveError(null)
     setSaving(true)
-    const response = await chrome.runtime.sendMessage({
-      type: 'SAVE_SUBSCRIPTION',
-      payload: {
-        serviceName: serviceName.trim(),
-        intent,
-        isFreeTrial,
-        detectionSource: 'auto_detected' as const,
-        sourceDomain: result.sourceDomain,
-        website: website.trim() || undefined,
-        cost: cost ? parseFloat(cost) : undefined,
-        currency,
-        billingFrequency: result.billingFrequency,
-        renewalDate: renewalDate || undefined,
-        trialEndDate: isFreeTrial ? (trialEndDate || undefined) : undefined,
-      },
-    })
-    setSaving(false)
-    if (response?.ok) {
-      onSaved()
-    } else {
-      setSaveError(response?.error ?? 'Something went wrong.')
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SAVE_SUBSCRIPTION',
+        payload: {
+          serviceName: serviceName.trim(),
+          intent,
+          isFreeTrial,
+          detectionSource: 'auto_detected' as const,
+          sourceDomain: result.sourceDomain,
+          cost: cost ? parseFloat(cost) : undefined,
+          currency,
+          billingFrequency: result.billingFrequency,
+          renewalDate: renewalDate || undefined,
+          trialEndDate: isFreeTrial ? (trialEndDate || undefined) : undefined,
+        },
+      })
+      if (response?.ok) {
+        onSaved()
+      } else {
+        setSaveError(response?.error ?? 'Something went wrong.')
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -126,11 +121,6 @@ export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
             />
             {fieldError && <p className="form-error-msg">{fieldError}</p>}
           </div>
-          {priceDisplay && (
-            <p className="form-hint-inline">
-              <span className="detected-price-badge">{priceDisplay}</span> detected on page
-            </p>
-          )}
         </section>
 
         <section className="popup-card">
@@ -218,16 +208,19 @@ export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
           <div className="form-field form-field--spaced">
             <label className="form-label form-label--primary">Amount</label>
             <div className="form-input-prefix-wrap">
-              <select
-                className="form-currency-select"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                aria-label="Currency"
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
-                ))}
-              </select>
+              <div className="form-currency-wrap">
+                <select
+                  className="form-currency-select"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  aria-label="Currency"
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
+                  ))}
+                </select>
+                <span className="form-currency-chevron" aria-hidden="true"><ChevronDownIcon size={12} /></span>
+              </div>
               <input
                 className="form-input form-input--comfort form-input--prefixed-wide"
                 type="number"

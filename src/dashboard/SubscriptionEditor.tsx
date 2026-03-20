@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import type { Subscription, Intent } from '../types/subscription'
 import { updateSubscription } from '../services/subscriptionService'
 import { getPreferences } from '../repository/preferencesRepository'
-import { X as XIcon } from 'lucide-react'
+import { X as XIcon, ChevronDown as ChevronDownIcon } from 'lucide-react'
 import { CURRENCIES } from '../utils/currency'
 
 interface Props {
@@ -41,7 +42,43 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [closing, setClosing] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  // Animate out then call onClose
+  const dismiss = useCallback(() => {
+    if (closing) return
+    setClosing(true)
+    const t = setTimeout(onClose, 180)
+    return () => clearTimeout(t)
+  }, [closing, onClose])
+
+  // Click outside: check mousedown target against panel
+  useEffect(() => {
+    function handleMouseDown(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        dismiss()
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [dismiss])
+
+  // Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') dismiss()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [dismiss])
+
+  // Lock body scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
 
   async function handleSave() {
     if (!serviceName.trim()) { setError('Service name is required.'); return }
@@ -59,7 +96,7 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
       }, prefs)
       onSave()
     } catch (err) {
-      setError(String(err))
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
       setSaving(false)
     }
@@ -67,19 +104,18 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
 
   const selectedIntentDesc = INTENT_OPTIONS.find((o) => o.value === intent)?.desc
 
-  return (
-    <div className="modal-overlay" role="presentation" aria-hidden="true">
+  return createPortal(
+    <div className={`modal-overlay${closing ? ' modal-overlay--closing' : ''}`}>
       <div
-        className="modal-panel"
+        className={`modal-panel${closing ? ' modal-panel--closing' : ''}`}
         ref={panelRef}
         role="dialog"
         aria-label="Edit subscription"
         aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
           <h3 className="modal-heading">Edit subscription</h3>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="modal-close" onClick={dismiss} aria-label="Close">
             <XIcon size={18} aria-hidden="true" />
           </button>
         </div>
@@ -101,28 +137,32 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
 
         <label className="form-label">Cost</label>
         <div className="form-input-prefix-wrap">
-          <select
-            className="form-currency-select"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            aria-label="Currency"
-          >
-            {CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
-            ))}
-          </select>
+          <div className="form-currency-wrap">
+            <select
+              className="form-currency-select"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              aria-label="Currency"
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
+              ))}
+            </select>
+            <span className="form-currency-chevron" aria-hidden="true"><ChevronDownIcon size={12} /></span>
+          </div>
           <input className="form-input form-input--with-currency" type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} />
         </div>
 
         {error && <p className="form-error">{error}</p>}
 
         <div className="form-actions">
-          <button className="btn btn--secondary btn--lg" onClick={onClose}>Cancel</button>
+          <button className="btn btn--secondary btn--lg" onClick={dismiss}>Cancel</button>
           <button className="btn btn--primary btn--lg" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

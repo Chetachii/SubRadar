@@ -57,6 +57,12 @@ async function handleMessage(message: Message): Promise<unknown> {
       return { ok: true, subscription: sub }
     }
 
+    case 'DISMISS_REMINDER': {
+      const { id } = message.payload as { id: string }
+      const sub = await subscriptionService.dismissReminder(id)
+      return { ok: true, subscription: sub }
+    }
+
     default:
       return { error: `Unknown message type: ${message.type}` }
   }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import type { Intent } from '../types/subscription'
-import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon, AlertCircle as AlertCircleIcon } from 'lucide-react'
+import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon, AlertCircle as AlertCircleIcon, ChevronDown as ChevronDownIcon } from 'lucide-react'
 import { CURRENCIES } from '../utils/currency'
+import { today } from '../utils/dates'
 
 interface Props {
   onSaved: () => void
@@ -50,9 +51,6 @@ const INTENT_OPTIONS: {
   },
 ]
 
-const _now = new Date()
-const TODAY = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`
-
 const EMPTY: FormState = {
   serviceName: '',
   website: '',
@@ -80,8 +78,10 @@ function validate(form: FormState): Errors {
 }
 
 export default function ManualEntryForm({ onSaved }: Props) {
+  const TODAY = today()
+
   const [form, setForm] = useState<FormState>(EMPTY)
-  const [intent, setIntent] = useState<Intent>('remind_before_billing')
+  const [intent, setIntent] = useState<Intent | null>(null)
   const [currency, setCurrency] = useState('USD')
   const [isFreeTrial, setIsFreeTrial] = useState(true)
   const [errors, setErrors] = useState<Errors>({})
@@ -91,6 +91,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
   const [websiteManuallyEdited, setWebsiteManuallyEdited] = useState(false)
   const [websiteLooking, setWebsiteLooking] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (websiteManuallyEdited) return
@@ -98,17 +99,23 @@ export default function ManualEntryForm({ onSaved }: Props) {
     if (!name) { setForm((prev) => ({ ...prev, website: '' })); return }
 
     if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (abortRef.current) abortRef.current.abort()
     setWebsiteLooking(true)
+    const controller = new AbortController()
+    abortRef.current = controller
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(name)}`
+          `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(name)}`,
+          { signal: controller.signal }
         )
+        if (!res.ok) return
         const results = await res.json() as { name: string; domain: string }[]
         if (results.length > 0) {
           setForm((prev) => ({ ...prev, website: results[0].domain }))
         }
-      } catch {
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
         // silently fail
       } finally {
         setWebsiteLooking(false)
@@ -140,6 +147,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
     const errs = validate(form)
     setErrors(errs)
     if (Object.keys(errs).length) return
+    if (!intent) { setSubmitError('Please select what you want to do.'); return }
 
     setSaving(true)
     setSubmitError(null)
@@ -150,7 +158,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
         payload: {
           serviceName: form.serviceName.trim(),
           sourceDomain: extractDomain(form.website),
-          intent,
+          intent: intent!,
           isFreeTrial,
           detectionSource: 'manual_entry' as const,
           cost: form.price ? parseFloat(form.price) : undefined,
@@ -298,16 +306,19 @@ export default function ManualEntryForm({ onSaved }: Props) {
               Cost <span className="form-label-optional-inline">(optional)</span>
             </label>
             <div className="form-input-prefix-wrap">
-              <select
-                className="form-currency-select"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                aria-label="Currency"
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
-                ))}
-              </select>
+              <div className="form-currency-wrap">
+                <select
+                  className="form-currency-select"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  aria-label="Currency"
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
+                  ))}
+                </select>
+                <span className="form-currency-chevron" aria-hidden="true"><ChevronDownIcon size={12} /></span>
+              </div>
               <input
                 className={`form-input form-input--comfort form-input--prefixed-wide${errors.price && touched.price ? ' form-input--error' : ''}`}
                 type="number"
@@ -337,7 +348,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
         <button
           className="btn-submit btn-submit--airy"
           onClick={handleSubmit}
-          disabled={saving || websiteLooking}
+          disabled={saving}
         >
           {saving ? 'Saving…' : <><PinIcon size={15} aria-hidden="true" /> Track it</>}
         </button>

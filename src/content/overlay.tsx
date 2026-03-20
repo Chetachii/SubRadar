@@ -10,6 +10,7 @@ interface ShellProps {
   onClose: () => void
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 function OverlayShell({ result, onClose }: ShellProps) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

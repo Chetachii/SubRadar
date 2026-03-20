@@ -48,9 +48,14 @@ function getMonogramColor(name: string): string {
   return MONOGRAM_COLORS[Math.abs(hash) % MONOGRAM_COLORS.length]
 }
 
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d, 12, 0, 0)
+}
+
 function formatDate(dateStr: string): string {
   try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    return parseLocalDate(dateStr).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -61,7 +66,7 @@ function formatDate(dateStr: string): string {
 }
 
 function relativeLabel(dateStr: string): { text: string; urgency: 'urgent' | 'soon' | null } {
-  const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  const diff = Math.ceil((parseLocalDate(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   if (diff < 0) return { text: `${Math.abs(diff)}d overdue`, urgency: 'urgent' }
   if (diff === 0) return { text: 'today', urgency: 'urgent' }
   if (diff === 1) return { text: 'tomorrow', urgency: 'urgent' }

@@ -79,6 +79,21 @@ export async function setSnooze(id: string, until: string): Promise<Subscription
   return repo.updateSubscription(id, { snoozedUntil: until })
 }
 
+/**
+ * Dismisses the current reminder instance for this subscription.
+ * Sets snoozedUntil = renewalDate, suppressing reminders until billing day.
+ * On the renewal date itself isDateReached(snoozedUntil) becomes true,
+ * so the snooze expires and the renewal-day reminder still fires as expected.
+ * Different from setSnooze (24h) — dismiss silences the entire pre-billing window.
+ */
+export async function dismissReminder(id: string): Promise<Subscription> {
+  const sub = await repo.getSubscriptionById(id)
+  if (!sub) throw new Error(`Subscription not found: ${id}`)
+  const dueDate = resolveDueDate(sub)
+  const snoozeUntil = dueDate ?? addDays(today(), 7)
+  return repo.updateSubscription(id, { snoozedUntil: snoozeUntil })
+}
+
 function billingFrequencyToDays(freq: BillingFrequency): number | null {
   switch (freq) {
     case 'weekly': return 7

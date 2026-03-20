@@ -1,4 +1,5 @@
-const promptedUrls = new Map<string, number>()
+const MAX_SIZE = 100
+const promptedUrls = new Map<string, true>()
 
 /** Returns true if this URL has already triggered a prompt this session */
 export function hasBeenPrompted(url: string): boolean {
@@ -7,7 +8,11 @@ export function hasBeenPrompted(url: string): boolean {
 
 /** Records that a prompt was shown for this URL */
 export function markPrompted(url: string): void {
-  promptedUrls.set(normalizeUrl(url), Date.now())
+  if (promptedUrls.size >= MAX_SIZE) {
+    const firstKey = promptedUrls.keys().next().value
+    if (firstKey !== undefined) promptedUrls.delete(firstKey)
+  }
+  promptedUrls.set(normalizeUrl(url), true)
 }
 
 /** Clears all prompt state (e.g. when navigating away) */

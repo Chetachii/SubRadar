@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import type { Subscription } from '../types/subscription'
 import { listSubscriptions, createSubscription, deleteSubscription } from '../repository/subscriptionRepository'
 import SubscriptionList from './SubscriptionList'
+import ReminderSection from './ReminderSection'
 import { Ban as BanIcon, Bell as BellIcon, RotateCcw as RotateCcwIcon, X as XIcon, Search as SearchIcon } from 'lucide-react'
 
 function useCountUp(target: number) {
@@ -69,9 +70,9 @@ export default function Dashboard() {
   }
 
   async function seedTestData() {
-    const today = new Date()
+    const now = new Date()
     const addDays = (n: number) => {
-      const d = new Date(today)
+      const d = new Date(now)
       d.setDate(d.getDate() + n)
       return d.toISOString().split('T')[0]
     }
@@ -97,21 +98,37 @@ export default function Dashboard() {
         renewalDate: addDays(20), intent: 'remind_before_billing', status: 'active',
         detectionSource: 'auto_detected' },
     ]
-    await Promise.all(seeds.map(createSubscription))
-    load()
+    try {
+      await Promise.all(seeds.map(createSubscription))
+      await load()
+    } catch (err) {
+      console.error('[SubRadar] Failed to seed test data:', err)
+    }
   }
 
   async function clearTestData() {
-    const subs = await listSubscriptions()
-    await Promise.all(subs.map((s) => deleteSubscription(s.id)))
-    load()
+    try {
+      const subs = await listSubscriptions()
+      await Promise.all(subs.map((s) => deleteSubscription(s.id)))
+      await load()
+    } catch (err) {
+      console.error('[SubRadar] Failed to clear test data:', err)
+    }
   }
 
   useEffect(() => {
     load()
-    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(load, 300)
+    }
     document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      if (debounceTimer) clearTimeout(debounceTimer)
+    }
   }, [])
 
   const summary = useMemo(() => {
@@ -135,10 +152,12 @@ export default function Dashboard() {
             <h1 className="dashboard-title">SubRadar</h1>
             <p className="dashboard-subtitle">Track free trials and subscriptions. Stay ahead of billing.</p>
           </div>
-          <div className="dev-tools">
-            <button className="btn btn--ghost" onClick={seedTestData}>Seed test data</button>
-            <button className="btn btn--ghost" onClick={clearTestData}>Clear</button>
-          </div>
+          {import.meta.env.DEV && (
+            <div className="dev-tools">
+              <button className="btn btn--ghost" onClick={seedTestData}>Seed test data</button>
+              <button className="btn btn--ghost" onClick={clearTestData}>Clear</button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -167,6 +186,8 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <ReminderSection subscriptions={subscriptions} onRefresh={load} />
 
       <div className="search-bar">
         <span className="search-icon" aria-hidden="true">

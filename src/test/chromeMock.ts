@@ -24,7 +24,7 @@ function makeStorage(store: Map<string, unknown>) {
 }
 
 export function installChromeMock() {
-  ;(globalThis as unknown as { chrome: unknown }).chrome = {
+  (globalThis as unknown as { chrome: unknown }).chrome = {
     storage: {
       local: makeStorage(localStore),
       session: makeStorage(sessionStore),

@@ -7,6 +7,7 @@ type View = 'manual_entry' | 'success'
 
 export default function Popup() {
   const [view, setView] = useState<View>('manual_entry')
+  const [formKey, setFormKey] = useState(0)
 
   function handleSaved() {
     setView('success')
@@ -28,7 +29,7 @@ export default function Popup() {
           <div className="success-icon"><CheckCircleIcon size={28} aria-hidden="true" /></div>
           <p className="success-title">Subscription tracked!</p>
           <p className="success-sub">It will appear in your dashboard.</p>
-          <button className="btn-text-link" onClick={() => setView('manual_entry')}>
+          <button className="btn-text-link" onClick={() => { setFormKey((k) => k + 1); setView('manual_entry') }}>
             Track another
           </button>
         </div>
@@ -48,7 +49,7 @@ export default function Popup() {
         </button>
       </div>
 
-      <ManualEntryForm onSaved={handleSaved} />
+      <ManualEntryForm key={formKey} onSaved={handleSaved} />
     </div>
   )
 }
