@@ -50,7 +50,8 @@ const INTENT_OPTIONS: {
   },
 ]
 
-const TODAY = new Date().toISOString().split('T')[0]
+const _now = new Date()
+const TODAY = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`
 
 const EMPTY: FormState = {
   serviceName: '',
@@ -258,6 +259,16 @@ export default function ManualEntryForm({ onSaved }: Props) {
         <section className="popup-card" aria-labelledby="label-dates">
           <p className="form-section-heading" id="label-dates">Dates</p>
           <div className="form-field form-field--spaced">
+            <label className="form-label form-label--primary">Subscription date</label>
+            <input
+              className="form-input form-input--comfort"
+              type="date"
+              value={TODAY}
+              readOnly
+              style={{ color: 'var(--color-text-muted, #888)', cursor: 'default' }}
+            />
+          </div>
+          <div className="form-field form-field--spaced form-field--mt">
             <label className="form-label form-label--primary">Renewal date</label>
             <input
               className="form-input form-input--comfort"
