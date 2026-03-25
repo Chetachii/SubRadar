@@ -8,22 +8,26 @@ import {
   markRenewed,
   setSnooze,
 } from './subscriptionService'
-import { listSubscriptions, getSubscriptionById } from '../repository/subscriptionRepository'
+import { listSubscriptions, getSubscriptionById, deleteSubscription } from '../repository/subscriptionRepository'
 import { scanDueReminders } from './reminderService'
 import { findDuplicate } from './duplicateService'
 
 const prefs = makePreferences({ reminderLeadDays: 3, notificationsEnabled: true })
 const TODAY = '2024-06-15'
 
+const createdIds: string[] = []
+
 beforeEach(() => {
+  createdIds.length = 0
   installChromeMock()
   resetChromeMock()
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
 })
 
-afterEach(() => {
+afterEach(async () => {
   vi.useRealTimers()
+  await Promise.all(createdIds.map((id) => deleteSubscription(id).catch(() => {})))
 })
 
 describe('full subscription lifecycle', () => {
@@ -38,14 +42,15 @@ describe('full subscription lifecycle', () => {
       },
       prefs,
     )
+    createdIds.push(created.id)
     expect(created.id).toBeDefined()
     expect(created.status).toBe('active')
     expect(created.serviceName).toBe('Spotify')
 
-    // Read
+    // Read — scope to this test's sub to isolate from DB noise
     const allSubs = await listSubscriptions()
-    expect(allSubs).toHaveLength(1)
-    expect(allSubs[0].id).toBe(created.id)
+    const ourSub = allSubs.find((s) => s.id === created.id)
+    expect(ourSub).toBeDefined()
 
     // Update — patch must include required fields (serviceName, intent) since validator runs on patch
     const updated = await updateSubscription(
@@ -66,7 +71,7 @@ describe('full subscription lifecycle', () => {
 
 describe('reminder scan end-to-end', () => {
   it('eligible subscription appears in scan results', async () => {
-    await createSubscription(
+    const created = await createSubscription(
       {
         serviceName: 'Netflix',
         intent: 'cancel',
@@ -75,11 +80,13 @@ describe('reminder scan end-to-end', () => {
       },
       prefs,
     )
+    createdIds.push(created.id)
 
     const subs = await listSubscriptions()
     const due = scanDueReminders(subs, prefs)
-    expect(due).toHaveLength(1)
-    expect(due[0].serviceName).toBe('Netflix')
+    const ourDue = due.filter((s) => s.id === created.id)
+    expect(ourDue).toHaveLength(1)
+    expect(ourDue[0].serviceName).toBe('Netflix')
   })
 
   it('snoozed subscription does not appear in scan', async () => {
@@ -92,18 +99,20 @@ describe('reminder scan end-to-end', () => {
       },
       prefs,
     )
+    createdIds.push(created.id)
 
     await setSnooze(created.id, '2024-06-20')
 
     const subs = await listSubscriptions()
     const due = scanDueReminders(subs, prefs)
-    expect(due).toHaveLength(0)
+    const ourDue = due.filter((s) => s.id === created.id)
+    expect(ourDue).toHaveLength(0)
   })
 })
 
 describe('duplicate detection prevents double-save', () => {
   it('findDuplicate finds existing active subscription', async () => {
-    await createSubscription(
+    const created = await createSubscription(
       {
         serviceName: 'Hulu',
         intent: 'cancel',
@@ -112,9 +121,11 @@ describe('duplicate detection prevents double-save', () => {
       },
       prefs,
     )
+    createdIds.push(created.id)
 
     const subs = await listSubscriptions()
-    const duplicate = findDuplicate(subs, 'Hulu', 'hulu.com')
+    const ourSubs = subs.filter((s) => createdIds.includes(s.id))
+    const duplicate = findDuplicate(ourSubs, 'Hulu', 'hulu.com')
     expect(duplicate).not.toBeNull()
     expect(duplicate!.serviceName).toBe('Hulu')
   })
@@ -128,10 +139,12 @@ describe('duplicate detection prevents double-save', () => {
       },
       prefs,
     )
+    createdIds.push(sub.id)
 
     await archiveSubscription(sub.id)
     const subs = await listSubscriptions()
-    const duplicate = findDuplicate(subs, 'Hulu')
+    const ourSubs = subs.filter((s) => createdIds.includes(s.id))
+    const duplicate = findDuplicate(ourSubs, 'Hulu')
     expect(duplicate).toBeNull()
   })
 })
@@ -148,6 +161,7 @@ describe('markRenewed resets reminder state', () => {
       },
       prefs,
     )
+    createdIds.push(created.id)
 
     await markRenewed(created.id)
 

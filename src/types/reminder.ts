@@ -10,6 +10,13 @@ export type ReminderState =
   | 'overdue'   // reminder window is open; renewal is imminent or has passed
   | 'snoozed'   // user snoozed; reminder suppressed until snoozedUntil
 
+/**
+ * Which of the two per-cycle notification points is firing.
+ * 'early'       — fires during [renewalDate - leadDays, renewalDate)
+ * 'renewal_day' — fires on or after renewalDate
+ */
+export type ReminderPoint = 'early' | 'renewal_day'
+
 /** Computed reminder context for a subscription. Read-only / derived. */
 export interface ReminderSummary {
   subscriptionId: string

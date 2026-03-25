@@ -1,6 +1,9 @@
-/** Returns ISO date string (YYYY-MM-DD) from a Date object */
+/** Returns ISO date string (YYYY-MM-DD) from a Date object using local time */
 export function toISODate(date: Date): string {
-  return date.toISOString().split('T')[0]
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 /** Returns today's date as ISO string */
@@ -31,6 +34,20 @@ export function daysBetween(a: string, b: string): number {
   const dateA = new Date(a + 'T00:00:00').getTime()
   const dateB = new Date(b + 'T00:00:00').getTime()
   return Math.round((dateB - dateA) / msPerDay)
+}
+
+/**
+ * Adds `months` calendar months to an ISO date string.
+ * Clamps to the last day of the target month — e.g. Jan 31 + 1 month → Feb 28/29.
+ */
+export function addMonths(isoDate: string, months: number): string {
+  const date = new Date(isoDate + 'T00:00:00')
+  const day = date.getDate()
+  date.setDate(1) // prevent month overflow during setMonth
+  date.setMonth(date.getMonth() + months)
+  const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+  date.setDate(Math.min(day, daysInMonth))
+  return toISODate(date)
 }
 
 /** Returns true if the ISO date string is a valid calendar date */

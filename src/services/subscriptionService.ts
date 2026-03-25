@@ -2,7 +2,7 @@ import type { Subscription, Intent, BillingFrequency } from '../types/subscripti
 import type { Preferences } from '../types/preferences'
 import * as repo from '../repository/subscriptionRepository'
 import { validateSubscription } from '../utils/validation'
-import { addDays, today } from '../utils/dates'
+import { addDays, addMonths, today } from '../utils/dates'
 import { computeReminderDate, resolveDueDate } from './reminderService'
 
 type CreateInput = Pick<Subscription, 'serviceName' | 'intent' | 'detectionSource'> &
@@ -45,7 +45,18 @@ export async function updateSubscription(
     computeReminderDate(merged as Subscription, prefs.reminderLeadDays) ??
     existing.reminderDate
 
-  return repo.updateSubscription(id, { ...patch, reminderDate })
+  // If the renewal date changed, reset reminder state so the new cycle is fresh
+  const renewalDateChanged =
+    patch.renewalDate !== undefined && patch.renewalDate !== existing.renewalDate
+
+  return repo.updateSubscription(id, {
+    ...patch,
+    reminderDate,
+    ...(renewalDateChanged && {
+      lastReminderSentAt: null as unknown as undefined,
+      snoozedUntil: null as unknown as undefined,
+    }),
+  })
 }
 
 export async function archiveSubscription(id: string): Promise<Subscription> {
@@ -77,6 +88,49 @@ export async function markRenewed(id: string): Promise<Subscription> {
 
 export async function setSnooze(id: string, until: string): Promise<Subscription> {
   return repo.updateSubscription(id, { snoozedUntil: until })
+}
+
+export async function stampReminderSent(id: string): Promise<Subscription> {
+  return repo.updateSubscription(id, { lastReminderSentAt: today() })
+}
+
+/**
+ * Called by runScan after a renewal_day notification fires.
+ * Advances renewalDate by one billing cycle using calendar-accurate month arithmetic,
+ * recomputes reminderDate, and clears lastReminderSentAt + snoozedUntil for the new cycle.
+ * No-ops (returns sub unchanged) if status is canceled or archived.
+ * Falls back to a plain timestamp if billingFrequency is absent.
+ */
+export async function rollRenewalDate(id: string, prefs: Preferences): Promise<Subscription> {
+  const sub = await repo.getSubscriptionById(id)
+  if (!sub) throw new Error(`Subscription not found: ${id}`)
+  if (sub.status === 'canceled' || sub.status === 'archived') return sub
+  if (!sub.renewalDate || !sub.billingFrequency) {
+    return repo.updateSubscription(id, { lastReminderSentAt: today() })
+  }
+
+  const nextRenewalDate = advanceDateByFrequency(sub.renewalDate, sub.billingFrequency)
+  const nextReminderDate =
+    computeReminderDate({ ...sub, renewalDate: nextRenewalDate }, prefs.reminderLeadDays) ??
+    undefined
+
+  return repo.updateSubscription(id, {
+    renewalDate: nextRenewalDate,
+    reminderDate: nextReminderDate,
+    // null clears the DB columns; toRow passes any non-undefined value to Supabase
+    lastReminderSentAt: null as unknown as undefined,
+    snoozedUntil: null as unknown as undefined,
+  })
+}
+
+function advanceDateByFrequency(isoDate: string, freq: BillingFrequency): string {
+  switch (freq) {
+    case 'weekly':    return addDays(isoDate, 7)
+    case 'monthly':   return addMonths(isoDate, 1)
+    case 'quarterly': return addMonths(isoDate, 3)
+    case 'yearly':    return addMonths(isoDate, 12)
+    default:          return isoDate
+  }
 }
 
 /**

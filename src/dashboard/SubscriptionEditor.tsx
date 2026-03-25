@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import type { Subscription, Intent } from '../types/subscription'
-import { updateSubscription } from '../services/subscriptionService'
-import { getPreferences } from '../repository/preferencesRepository'
 import { X as XIcon, ChevronDown as ChevronDownIcon } from 'lucide-react'
 import { CURRENCIES } from '../utils/currency'
 
@@ -85,15 +83,21 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
     setSaving(true)
     setError(null)
     try {
-      const prefs = await getPreferences()
-      await updateSubscription(sub.id, {
-        serviceName: serviceName.trim(),
-        intent,
-        trialEndDate: trialEndDate || undefined,
-        renewalDate: renewalDate || undefined,
-        cost: cost ? parseFloat(cost) : undefined,
-        currency,
-      }, prefs)
+      const response = await chrome.runtime.sendMessage({
+        type: 'UPDATE_SUBSCRIPTION',
+        payload: {
+          id: sub.id,
+          patch: {
+            serviceName: serviceName.trim(),
+            intent,
+            trialEndDate: trialEndDate || undefined,
+            renewalDate: renewalDate || undefined,
+            cost: cost ? parseFloat(cost) : undefined,
+            currency,
+          },
+        },
+      })
+      if (response?.error) throw new Error(response.error)
       onSave()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')

@@ -4,18 +4,19 @@ import {
   today,
   isDateReached,
   addDays,
+  addMonths,
   subtractDays,
   daysBetween,
   isValidISODate,
 } from './dates'
 
 describe('toISODate', () => {
-  it('formats a Date as YYYY-MM-DD', () => {
-    expect(toISODate(new Date('2024-06-15T00:00:00Z'))).toBe('2024-06-15')
+  it('formats a Date as YYYY-MM-DD using local time', () => {
+    expect(toISODate(new Date('2024-06-15T12:00:00'))).toBe('2024-06-15')
   })
 
-  it('extracts only the date portion from a datetime', () => {
-    expect(toISODate(new Date('2024-12-31T23:59:59Z'))).toBe('2024-12-31')
+  it('extracts only the date portion from a local datetime', () => {
+    expect(toISODate(new Date('2024-12-31T12:00:00'))).toBe('2024-12-31')
   })
 })
 
@@ -80,6 +81,36 @@ describe('addDays', () => {
 
   it('handles negative days (subtracts)', () => {
     expect(addDays('2024-06-15', -5)).toBe('2024-06-10')
+  })
+})
+
+describe('addMonths', () => {
+  it('adds one month to a mid-month date', () => {
+    expect(addMonths('2024-06-15', 1)).toBe('2024-07-15')
+  })
+
+  it('adds 3 months (quarterly)', () => {
+    expect(addMonths('2024-01-15', 3)).toBe('2024-04-15')
+  })
+
+  it('adds 12 months (yearly)', () => {
+    expect(addMonths('2024-03-24', 12)).toBe('2025-03-24')
+  })
+
+  it('clamps Jan 31 + 1 month to Feb 28 (non-leap year)', () => {
+    expect(addMonths('2025-01-31', 1)).toBe('2025-02-28')
+  })
+
+  it('clamps Jan 31 + 1 month to Feb 29 (leap year)', () => {
+    expect(addMonths('2024-01-31', 1)).toBe('2024-02-29')
+  })
+
+  it('clamps Mar 31 + 1 month to Apr 30', () => {
+    expect(addMonths('2024-03-31', 1)).toBe('2024-04-30')
+  })
+
+  it('crosses year boundary', () => {
+    expect(addMonths('2024-11-15', 3)).toBe('2025-02-15')
   })
 })
 

@@ -6,6 +6,7 @@ import {
   cancelSubscription,
   markRenewed,
   setSnooze,
+  rollRenewalDate,
 } from './subscriptionService'
 import { makeSubscription, makePreferences } from '../test/factories'
 
@@ -215,6 +216,130 @@ describe('markRenewed', () => {
       sub.id,
       expect.objectContaining({ status: 'active' }),
     )
+  })
+})
+
+describe('rollRenewalDate', () => {
+  it('returns sub unchanged when status is canceled', async () => {
+    const sub = makeSubscription({ status: 'canceled', renewalDate: '2026-03-24', billingFrequency: 'monthly' })
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(sub)
+
+    const result = await rollRenewalDate(sub.id, prefs)
+
+    expect(repo.updateSubscription).not.toHaveBeenCalled()
+    expect(result).toEqual(sub)
+  })
+
+  it('returns sub unchanged when status is archived', async () => {
+    const sub = makeSubscription({ status: 'archived', renewalDate: '2026-03-24', billingFrequency: 'monthly' })
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(sub)
+
+    const result = await rollRenewalDate(sub.id, prefs)
+
+    expect(repo.updateSubscription).not.toHaveBeenCalled()
+    expect(result).toEqual(sub)
+  })
+
+  it('advances weekly billing by 7 days', async () => {
+    const sub = makeSubscription({ renewalDate: '2026-03-24', billingFrequency: 'weekly' })
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(sub)
+    vi.mocked(repo.updateSubscription).mockResolvedValue({ ...sub, renewalDate: '2026-03-31' })
+
+    await rollRenewalDate(sub.id, prefs)
+
+    expect(repo.updateSubscription).toHaveBeenCalledWith(
+      sub.id,
+      expect.objectContaining({ renewalDate: '2026-03-31' }),
+    )
+  })
+
+  it('advances monthly billing by one calendar month', async () => {
+    const sub = makeSubscription({ renewalDate: '2026-03-24', billingFrequency: 'monthly' })
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(sub)
+    vi.mocked(repo.updateSubscription).mockResolvedValue({ ...sub, renewalDate: '2026-04-24' })
+
+    await rollRenewalDate(sub.id, prefs)
+
+    expect(repo.updateSubscription).toHaveBeenCalledWith(
+      sub.id,
+      expect.objectContaining({ renewalDate: '2026-04-24' }),
+    )
+  })
+
+  it('advances quarterly billing by 3 calendar months', async () => {
+    const sub = makeSubscription({ renewalDate: '2026-01-15', billingFrequency: 'quarterly' })
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(sub)
+    vi.mocked(repo.updateSubscription).mockResolvedValue({ ...sub, renewalDate: '2026-04-15' })
+
+    await rollRenewalDate(sub.id, prefs)
+
+    expect(repo.updateSubscription).toHaveBeenCalledWith(
+      sub.id,
+      expect.objectContaining({ renewalDate: '2026-04-15' }),
+    )
+  })
+
+  it('advances yearly billing by 12 calendar months', async () => {
+    const sub = makeSubscription({ renewalDate: '2026-03-24', billingFrequency: 'yearly' })
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(sub)
+    vi.mocked(repo.updateSubscription).mockResolvedValue({ ...sub, renewalDate: '2027-03-24' })
+
+    await rollRenewalDate(sub.id, prefs)
+
+    expect(repo.updateSubscription).toHaveBeenCalledWith(
+      sub.id,
+      expect.objectContaining({ renewalDate: '2027-03-24' }),
+    )
+  })
+
+  it('clamps Jan 31 + monthly to Feb 28 in non-leap year', async () => {
+    const sub = makeSubscription({ renewalDate: '2025-01-31', billingFrequency: 'monthly' })
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(sub)
+    vi.mocked(repo.updateSubscription).mockResolvedValue({ ...sub, renewalDate: '2025-02-28' })
+
+    await rollRenewalDate(sub.id, prefs)
+
+    expect(repo.updateSubscription).toHaveBeenCalledWith(
+      sub.id,
+      expect.objectContaining({ renewalDate: '2025-02-28' }),
+    )
+  })
+
+  it('clears lastReminderSentAt and snoozedUntil', async () => {
+    const sub = makeSubscription({
+      renewalDate: '2026-03-24',
+      billingFrequency: 'monthly',
+      lastReminderSentAt: '2026-03-24',
+      snoozedUntil: '2026-03-25',
+    })
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(sub)
+    vi.mocked(repo.updateSubscription).mockResolvedValue(sub)
+
+    await rollRenewalDate(sub.id, prefs)
+
+    expect(repo.updateSubscription).toHaveBeenCalledWith(
+      sub.id,
+      expect.objectContaining({ lastReminderSentAt: null, snoozedUntil: null }),
+    )
+  })
+
+  it('recomputes reminderDate for the new cycle', async () => {
+    const sub = makeSubscription({ renewalDate: '2026-03-24', billingFrequency: 'monthly' })
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(sub)
+    vi.mocked(repo.updateSubscription).mockResolvedValue(sub)
+
+    await rollRenewalDate(sub.id, makePreferences({ reminderLeadDays: 3 }))
+
+    // next renewalDate = 2026-04-24, reminderDate = 2026-04-21
+    expect(repo.updateSubscription).toHaveBeenCalledWith(
+      sub.id,
+      expect.objectContaining({ reminderDate: '2026-04-21' }),
+    )
+  })
+
+  it('throws when subscription not found', async () => {
+    vi.mocked(repo.getSubscriptionById).mockResolvedValue(null)
+    await expect(rollRenewalDate('missing', prefs)).rejects.toThrow('Subscription not found: missing')
   })
 })
 

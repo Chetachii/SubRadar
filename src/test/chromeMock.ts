@@ -57,6 +57,10 @@ export function installChromeMock() {
     tabs: {
       create: vi.fn(),
     },
+    action: {
+      setBadgeText: vi.fn(),
+      setBadgeBackgroundColor: vi.fn(),
+    },
   }
 }
 

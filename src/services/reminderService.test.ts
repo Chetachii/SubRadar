@@ -4,6 +4,7 @@ import {
   computeReminderDate,
   isEligibleForReminder,
   scanDueReminders,
+  getEligibleReminderPoints,
 } from './reminderService'
 import { makeSubscription, makePreferences } from '../test/factories'
 
@@ -24,9 +25,9 @@ describe('resolveDueDate', () => {
     expect(resolveDueDate(sub)).toBe('2024-07-01')
   })
 
-  it('falls back to trialEndDate when no renewalDate', () => {
+  it('returns null when only trialEndDate is set (no renewalDate)', () => {
     const sub = makeSubscription({ trialEndDate: '2024-06-20' })
-    expect(resolveDueDate(sub)).toBe('2024-06-20')
+    expect(resolveDueDate(sub)).toBeNull()
   })
 
   it('returns null when neither date is set', () => {
@@ -51,9 +52,9 @@ describe('computeReminderDate', () => {
     expect(computeReminderDate(sub, 0)).toBe('2024-06-20')
   })
 
-  it('uses trialEndDate as fallback for due date', () => {
+  it('returns null when only trialEndDate is set (no renewalDate)', () => {
     const sub = makeSubscription({ trialEndDate: '2024-06-22' })
-    expect(computeReminderDate(sub, 3)).toBe('2024-06-19')
+    expect(computeReminderDate(sub, 3)).toBeNull()
   })
 })
 
@@ -63,6 +64,7 @@ describe('isEligibleForReminder', () => {
   it('returns true when all conditions are met', () => {
     const sub = makeSubscription({
       status: 'active',
+      renewalDate: '2024-06-18',
       reminderDate: TODAY,
     })
     expect(isEligibleForReminder(sub, basePrefs)).toBe(true)
@@ -95,7 +97,7 @@ describe('isEligibleForReminder', () => {
   })
 
   it('returns true on exact boundary day (reminder date = today)', () => {
-    const sub = makeSubscription({ status: 'active', reminderDate: TODAY })
+    const sub = makeSubscription({ status: 'active', renewalDate: '2024-06-18', reminderDate: TODAY })
     expect(isEligibleForReminder(sub, basePrefs)).toBe(true)
   })
 
@@ -117,24 +119,28 @@ describe('isEligibleForReminder', () => {
   it('returns true when snooze has expired', () => {
     const sub = makeSubscription({
       status: 'active',
+      renewalDate: '2024-06-18',
       reminderDate: TODAY,
       snoozedUntil: '2024-06-10',
     })
     expect(isEligibleForReminder(sub, basePrefs)).toBe(true)
   })
 
-  it('returns false when reminder already sent today', () => {
+  it('returns false when reminder already sent in this cycle (lastReminderSentAt >= reminderDate)', () => {
     const sub = makeSubscription({
       status: 'active',
+      renewalDate: '2024-06-18',
       reminderDate: TODAY,
       lastReminderSentAt: TODAY,
     })
     expect(isEligibleForReminder(sub, basePrefs)).toBe(false)
   })
 
-  it('returns true when last reminder was sent before today', () => {
+  it('returns true when last reminder was sent before this cycle (per-cycle dedup)', () => {
+    // lastReminderSentAt = '2024-06-01' < reminderDate = TODAY → different cycle → eligible
     const sub = makeSubscription({
       status: 'active',
+      renewalDate: '2024-06-18',
       reminderDate: TODAY,
       lastReminderSentAt: '2024-06-01',
     })
@@ -148,13 +154,89 @@ describe('isEligibleForReminder', () => {
   })
 })
 
+describe('getEligibleReminderPoints', () => {
+  const prefs = makePreferences({ notificationsEnabled: true, reminderLeadDays: 3 })
+
+  it("returns ['early'] when inside T-3 window and nothing sent yet", () => {
+    const sub = makeSubscription({ renewalDate: '2024-06-18', reminderDate: TODAY })
+    expect(getEligibleReminderPoints(sub, prefs)).toEqual(['early'])
+  })
+
+  it('returns [] when firstDate not yet reached', () => {
+    const sub = makeSubscription({ renewalDate: '2024-06-25', reminderDate: '2024-06-22' })
+    expect(getEligibleReminderPoints(sub, prefs)).toEqual([])
+  })
+
+  it('returns [] when early already sent (lastReminderSentAt >= firstDate)', () => {
+    const sub = makeSubscription({
+      renewalDate: '2024-06-18',
+      reminderDate: TODAY,
+      lastReminderSentAt: TODAY,
+    })
+    expect(getEligibleReminderPoints(sub, prefs)).toEqual([])
+  })
+
+  it("returns ['early'] when lastReminderSentAt is from a prior cycle (< firstDate)", () => {
+    const sub = makeSubscription({
+      renewalDate: '2024-06-18',
+      reminderDate: TODAY,
+      lastReminderSentAt: '2024-05-15',
+    })
+    expect(getEligibleReminderPoints(sub, prefs)).toEqual(['early'])
+  })
+
+  it("returns ['early'] when sub.reminderDate override is reached and before renewalDate", () => {
+    const sub = makeSubscription({ renewalDate: '2024-06-20', reminderDate: TODAY })
+    expect(getEligibleReminderPoints(sub, prefs)).toEqual(['early'])
+  })
+
+  it("returns ['renewal_day'] when today equals renewalDate", () => {
+    const sub = makeSubscription({ renewalDate: TODAY })
+    expect(getEligibleReminderPoints(sub, prefs)).toEqual(['renewal_day'])
+  })
+
+  it("returns ['renewal_day'] when renewalDate has passed (overdue)", () => {
+    const sub = makeSubscription({ renewalDate: '2024-06-10' })
+    expect(getEligibleReminderPoints(sub, prefs)).toEqual(['renewal_day'])
+  })
+
+  it('returns [] when lastReminderSentAt >= renewalDate (renewal-day already sent)', () => {
+    const sub = makeSubscription({
+      renewalDate: TODAY,
+      lastReminderSentAt: TODAY,
+    })
+    expect(getEligibleReminderPoints(sub, prefs)).toEqual([])
+  })
+
+  it("returns ['renewal_day'] when early was sent at T-3 but renewalDate is now reached", () => {
+    const sub = makeSubscription({
+      renewalDate: TODAY,
+      reminderDate: '2024-06-12',
+      lastReminderSentAt: '2024-06-12',
+    })
+    expect(getEligibleReminderPoints(sub, prefs)).toEqual(['renewal_day'])
+  })
+
+  it('result is mutually exclusive: at most one point fires for any input', () => {
+    const cases = [
+      makeSubscription({ renewalDate: '2024-06-18', reminderDate: TODAY }),
+      makeSubscription({ renewalDate: TODAY }),
+      makeSubscription({ renewalDate: '2024-06-10' }),
+      makeSubscription({ renewalDate: '2024-06-25', reminderDate: '2024-06-22' }),
+    ]
+    for (const sub of cases) {
+      expect(getEligibleReminderPoints(sub, prefs).length).toBeLessThanOrEqual(1)
+    }
+  })
+})
+
 describe('scanDueReminders', () => {
   const prefs = makePreferences({ notificationsEnabled: true, reminderLeadDays: 3 })
 
   it('returns only eligible subscriptions', () => {
-    const eligible = makeSubscription({ status: 'active', reminderDate: TODAY })
-    const notEligible = makeSubscription({ status: 'archived', reminderDate: TODAY })
-    const future = makeSubscription({ status: 'active', reminderDate: '2024-12-31' })
+    const eligible = makeSubscription({ status: 'active', renewalDate: '2024-06-18', reminderDate: TODAY })
+    const notEligible = makeSubscription({ status: 'archived', renewalDate: '2024-06-18', reminderDate: TODAY })
+    const future = makeSubscription({ status: 'active', renewalDate: '2025-01-03', reminderDate: '2024-12-31' })
     const result = scanDueReminders([eligible, notEligible, future], prefs)
     expect(result).toHaveLength(1)
     expect(result[0].id).toBe(eligible.id)
@@ -166,8 +248,8 @@ describe('scanDueReminders', () => {
   })
 
   it('returns all eligible when multiple qualify', () => {
-    const a = makeSubscription({ status: 'active', reminderDate: TODAY })
-    const b = makeSubscription({ status: 'active', reminderDate: '2024-06-01' })
+    const a = makeSubscription({ status: 'active', renewalDate: '2024-06-18', reminderDate: TODAY })
+    const b = makeSubscription({ status: 'active', renewalDate: '2024-06-04', reminderDate: '2024-06-01' })
     expect(scanDueReminders([a, b], prefs)).toHaveLength(2)
   })
 })

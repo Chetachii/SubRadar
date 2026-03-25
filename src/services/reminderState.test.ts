@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { getReminderState, getReminderSummary } from './reminderService'
+import { getReminderState, getReminderSummary, isEligibleForReminder } from './reminderService'
 import { makeSubscription, makePreferences } from '../test/factories'
 
 // TODAY       = 2024-06-15
@@ -43,7 +43,7 @@ describe('getReminderState', () => {
       expect(getReminderState(sub, basePrefs)).toBe('upcoming')
     })
 
-    it('uses trialEndDate as fallback when no renewalDate', () => {
+    it('returns upcoming when only trialEndDate is set (renewalDate is the sole trigger)', () => {
       const sub = makeSubscription({ status: 'active', trialEndDate: RENEWAL_FAR })
       expect(getReminderState(sub, basePrefs)).toBe('upcoming')
     })
@@ -117,6 +117,68 @@ describe('getReminderState', () => {
     })
   })
 })
+
+// ─── isEligibleForReminder ────────────────────────────────────────────────────
+
+describe('isEligibleForReminder', () => {
+  it('returns false for archived subscriptions', () => {
+    const sub = makeSubscription({ status: 'archived', renewalDate: RENEWAL })
+    expect(isEligibleForReminder(sub, basePrefs)).toBe(false)
+  })
+
+  it('returns false for canceled subscriptions', () => {
+    const sub = makeSubscription({ status: 'canceled', renewalDate: RENEWAL })
+    expect(isEligibleForReminder(sub, basePrefs)).toBe(false)
+  })
+
+  it('returns false when notificationsEnabled is false', () => {
+    const prefs = makePreferences({ notificationsEnabled: false, reminderLeadDays: 3 })
+    const sub = makeSubscription({ status: 'active', renewalDate: RENEWAL })
+    expect(isEligibleForReminder(sub, prefs)).toBe(false)
+  })
+
+  it('returns false when no renewalDate (even if trialEndDate is set)', () => {
+    const sub = makeSubscription({ status: 'active', trialEndDate: RENEWAL })
+    expect(isEligibleForReminder(sub, basePrefs)).toBe(false)
+  })
+
+  it('returns false when reminder date not yet reached', () => {
+    const sub = makeSubscription({ status: 'active', renewalDate: RENEWAL_FAR })
+    expect(isEligibleForReminder(sub, basePrefs)).toBe(false)
+  })
+
+  it('returns false when snoozed until the future', () => {
+    const sub = makeSubscription({ status: 'active', renewalDate: RENEWAL, snoozedUntil: SNOOZE_FUTURE })
+    expect(isEligibleForReminder(sub, basePrefs)).toBe(false)
+  })
+
+  it('returns true when all gates pass', () => {
+    const sub = makeSubscription({ status: 'active', renewalDate: RENEWAL })
+    expect(isEligibleForReminder(sub, basePrefs)).toBe(true)
+  })
+
+  it('returns false when lastReminderSentAt >= reminderDate (same cycle)', () => {
+    // reminderDate = TODAY (renewalDate - 3 days), lastReminderSentAt = TODAY → already sent
+    const sub = makeSubscription({ status: 'active', renewalDate: RENEWAL, lastReminderSentAt: TODAY })
+    expect(isEligibleForReminder(sub, basePrefs)).toBe(false)
+  })
+
+  it('returns true after cycle advances (new renewalDate pushes reminderDate past lastReminderSentAt)', () => {
+    // Old cycle: reminderDate = TODAY, lastReminderSentAt = TODAY
+    // After markRenewed: renewalDate shifts 30 days forward → reminderDate = today+27
+    // lastReminderSentAt (TODAY) < new reminderDate → gate opens again
+    const nextRenewal = '2024-07-18' // 33 days from TODAY, reminderDate = 2024-07-15
+    const sub = makeSubscription({ status: 'active', renewalDate: nextRenewal, lastReminderSentAt: TODAY })
+    expect(isEligibleForReminder(sub, basePrefs)).toBe(false) // reminder date not yet reached
+  })
+
+  it('returns false when lastReminderSentAt equals reminderDate', () => {
+    const sub = makeSubscription({ status: 'active', renewalDate: RENEWAL, lastReminderSentAt: TODAY })
+    // reminderDate computed = TODAY, lastReminderSentAt = TODAY → TODAY >= TODAY → skip
+    expect(isEligibleForReminder(sub, basePrefs)).toBe(false)
+  })
+})
+
 
 // ─── getReminderSummary ────────────────────────────────────────────────────────
 

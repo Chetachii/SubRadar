@@ -69,6 +69,7 @@ describe('SAVE_SUBSCRIPTION', () => {
     })) as { ok: boolean; subscription: unknown }
 
     expect(subService.createSubscription).toHaveBeenCalled()
+    expect(notifications.runScan).toHaveBeenCalled()
     expect(response.ok).toBe(true)
     expect(response.subscription).toEqual(sub)
   })
@@ -85,6 +86,7 @@ describe('UPDATE_SUBSCRIPTION', () => {
     })) as { ok: boolean; subscription: unknown }
 
     expect(subService.updateSubscription).toHaveBeenCalledWith(sub.id, { cost: 15 }, expect.any(Object))
+    expect(notifications.runScan).toHaveBeenCalled()
     expect(response.ok).toBe(true)
     expect(response.subscription).toEqual(sub)
   })

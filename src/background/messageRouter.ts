@@ -31,12 +31,14 @@ async function handleMessage(message: Message): Promise<unknown> {
     case 'SAVE_SUBSCRIPTION': {
       const input = message.payload as Parameters<typeof subscriptionService.createSubscription>[0]
       const sub = await subscriptionService.createSubscription(input, prefs)
+      await runScan()
       return { ok: true, subscription: sub }
     }
 
     case 'UPDATE_SUBSCRIPTION': {
       const { id, patch } = message.payload as { id: string; patch: Parameters<typeof subscriptionService.updateSubscription>[1] }
       const sub = await subscriptionService.updateSubscription(id, patch, prefs)
+      await runScan()
       return { ok: true, subscription: sub }
     }
 

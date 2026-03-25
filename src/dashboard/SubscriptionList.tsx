@@ -1,6 +1,7 @@
 import type { Subscription } from '../types/subscription'
 import { groupByIntent } from '../services/statusService'
 import SubscriptionCard from './SubscriptionCard'
+import { today } from '../utils/dates'
 import { Ban as BanIcon, Bell as BellIcon, RotateCcw as RotateCcwIcon, Radio as RadioIcon, Search as SearchIcon } from 'lucide-react'
 
 type FilterTab = 'all' | 'cancel' | 'renew' | 'remind_before_billing'
@@ -47,11 +48,18 @@ function matches(sub: Subscription, query: string): boolean {
 export default function SubscriptionList({ subscriptions, filter, search, onRefresh }: Props) {
   const groups = groupByIntent(subscriptions)
 
-  const items: Subscription[] =
+  const unsorted: Subscription[] =
     filter === 'cancel' ? groups.cancel :
     filter === 'renew' ? groups.renew :
     filter === 'remind_before_billing' ? groups.remindBeforeBilling :
     [...groups.cancel, ...groups.renew, ...groups.remindBeforeBilling]
+
+  const items = [...unsorted].sort((a, b) => {
+    if (!a.renewalDate && !b.renewalDate) return 0
+    if (!a.renewalDate) return 1
+    if (!b.renewalDate) return -1
+    return a.renewalDate < b.renewalDate ? -1 : a.renewalDate > b.renewalDate ? 1 : 0
+  })
 
   const filtered = items.filter((item) => matches(item, search))
 
