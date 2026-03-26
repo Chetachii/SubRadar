@@ -60,6 +60,7 @@ export function installChromeMock() {
     action: {
       setBadgeText: vi.fn(),
       setBadgeBackgroundColor: vi.fn(),
+      setBadgeTextColor: vi.fn(),
     },
   }
 }

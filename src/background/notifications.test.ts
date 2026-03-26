@@ -21,11 +21,13 @@ vi.mock('../services/subscriptionService', () => ({
 vi.mock('../services/reminderService', () => ({
   scanDueReminders: vi.fn(),
   getEligibleReminderPoints: vi.fn(),
+  isEligibleForReminder: vi.fn(),
 }))
 
 import {
   buildNotificationOptions,
   dispatchReminderNotification,
+  dispatchIfEligible,
   runScan,
   updateBadge,
   handleNotificationButtonClick,
@@ -164,6 +166,75 @@ describe('runScan', () => {
   })
 })
 
+describe('dispatchIfEligible', () => {
+  it('returns false and does not dispatch when sub is not eligible', () => {
+    vi.mocked(reminderService.isEligibleForReminder).mockReturnValue(false)
+    const sub = makeSubscription({ renewalDate: '2024-07-01' })
+    const result = dispatchIfEligible(sub, makePreferences())
+    expect(result).toBe(false)
+    expect(chrome.notifications.create).not.toHaveBeenCalled()
+  })
+
+  it('dispatches and returns true when sub is eligible', () => {
+    vi.mocked(reminderService.isEligibleForReminder).mockReturnValue(true)
+    vi.mocked(reminderService.getEligibleReminderPoints).mockReturnValue(['early'])
+    vi.mocked(subService.stampReminderSent).mockResolvedValue(makeSubscription())
+    const sub = makeSubscription({ id: 'sub-123', renewalDate: '2024-06-18' })
+    const result = dispatchIfEligible(sub, makePreferences())
+    expect(result).toBe(true)
+    expect(chrome.notifications.create).toHaveBeenCalledWith(
+      'subradar-sub-123-early',
+      expect.any(Object),
+      expect.any(Function),
+    )
+  })
+
+  it('calls stampReminderSent for early point', async () => {
+    vi.mocked(reminderService.isEligibleForReminder).mockReturnValue(true)
+    vi.mocked(reminderService.getEligibleReminderPoints).mockReturnValue(['early'])
+    vi.mocked(subService.stampReminderSent).mockResolvedValue(makeSubscription())
+    const sub = makeSubscription({ id: 'sub-123' })
+    dispatchIfEligible(sub, makePreferences())
+    await vi.runAllTimersAsync()
+    expect(subService.stampReminderSent).toHaveBeenCalledWith('sub-123')
+  })
+
+  it('calls rollRenewalDate for renewal_day point', async () => {
+    vi.mocked(reminderService.isEligibleForReminder).mockReturnValue(true)
+    vi.mocked(reminderService.getEligibleReminderPoints).mockReturnValue(['renewal_day'])
+    vi.mocked(subService.rollRenewalDate).mockResolvedValue(makeSubscription())
+    const sub = makeSubscription({ id: 'sub-123' })
+    dispatchIfEligible(sub, makePreferences())
+    await vi.runAllTimersAsync()
+    expect(subService.rollRenewalDate).toHaveBeenCalledWith('sub-123', expect.any(Object))
+  })
+})
+
+describe('runScan — skipIds', () => {
+  it('skips subs in skipIds even if they are due', async () => {
+    const sub = makeSubscription({ id: 'already-dispatched', renewalDate: TODAY })
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([sub])
+    vi.mocked(prefsRepo.getPreferences).mockResolvedValue(makePreferences())
+    vi.mocked(reminderService.scanDueReminders).mockReturnValue([])
+
+    await runScan({ skipIds: new Set(['already-dispatched']) })
+
+    // scanDueReminders receives empty toScan array (sub was filtered out)
+    expect(reminderService.scanDueReminders).toHaveBeenCalledWith([], expect.any(Object))
+    expect(chrome.notifications.create).not.toHaveBeenCalled()
+  })
+
+  it('uses provided prefs and skips getPreferences()', async () => {
+    const prefs = makePreferences()
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([])
+    vi.mocked(reminderService.scanDueReminders).mockReturnValue([])
+
+    await runScan({ prefs })
+
+    expect(prefsRepo.getPreferences).not.toHaveBeenCalled()
+  })
+})
+
 describe('handleNotificationButtonClick', () => {
   it('sets snooze for 1 day on SNOOZE', async () => {
     vi.mocked(subService.setSnooze).mockResolvedValue(makeSubscription())
@@ -185,6 +256,33 @@ describe('handleNotificationButtonClick', () => {
     await handleNotificationButtonClick('subradar-sub-abc-early', NOTIF_ACTION.SNOOZE)
 
     expect(chrome.notifications.clear).toHaveBeenCalledWith('subradar-sub-abc-early')
+  })
+
+  it('updates badge after SNOOZE', async () => {
+    vi.mocked(subService.setSnooze).mockResolvedValue(makeSubscription())
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([])
+
+    await handleNotificationButtonClick('subradar-sub-abc-early', NOTIF_ACTION.SNOOZE)
+
+    expect(chrome.action.setBadgeText).toHaveBeenCalled()
+  })
+
+  it('updates badge after DISMISS', async () => {
+    vi.mocked(subService.dismissReminder).mockResolvedValue(makeSubscription())
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([])
+
+    await handleNotificationButtonClick('subradar-sub-abc-early', NOTIF_ACTION.DISMISS)
+
+    expect(chrome.action.setBadgeText).toHaveBeenCalled()
+  })
+
+  it('clears badge when all notifications dismissed (no qualifying subs remain)', async () => {
+    vi.mocked(subService.dismissReminder).mockResolvedValue(makeSubscription())
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([])
+
+    await handleNotificationButtonClick('subradar-sub-abc-early', NOTIF_ACTION.DISMISS)
+
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '' })
   })
 })
 
@@ -260,12 +358,50 @@ describe('updateBadge', () => {
     expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '2' })
   })
 
+  it('excludes snoozed subs (snoozedUntil in the future)', async () => {
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([
+      makeSubscription({ renewalDate: TODAY, snoozedUntil: '2024-06-16' }), // snoozed until tomorrow
+    ])
+
+    await updateBadge()
+
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '' })
+  })
+
+  it('excludes dismissed subs (snoozedUntil = renewalDate, still in future)', async () => {
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([
+      makeSubscription({ renewalDate: '2024-06-17', snoozedUntil: '2024-06-17' }), // dismissed — snooze = due date
+    ])
+
+    await updateBadge()
+
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '' })
+  })
+
+  it('still counts subs whose snooze has expired', async () => {
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([
+      makeSubscription({ renewalDate: TODAY, snoozedUntil: '2024-06-14' }), // snooze expired yesterday
+    ])
+
+    await updateBadge()
+
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '1' })
+  })
+
   it('always sets badge background color to #E74C3C', async () => {
     vi.mocked(subRepo.listSubscriptions).mockResolvedValue([])
 
     await updateBadge()
 
     expect(chrome.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#E74C3C' })
+  })
+
+  it('always sets badge text color to #FFFFFF', async () => {
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([])
+
+    await updateBadge()
+
+    expect(chrome.action.setBadgeTextColor).toHaveBeenCalledWith({ color: '#FFFFFF' })
   })
 })
 

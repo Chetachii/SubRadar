@@ -87,7 +87,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY)
   const [intent, setIntent] = useState<Intent | null>(null)
   const [currency, setCurrency] = useState('USD')
-  const [isFreeTrial, setIsFreeTrial] = useState(true)
+  const [isFreeTrial, setIsFreeTrial] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
   const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({})
   const [saving, setSaving] = useState(false)

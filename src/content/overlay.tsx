@@ -99,7 +99,7 @@ export function mountOverlay(result: DetectionResult) {
   // Base styles: reset, animation, font/color inheritance via CSS vars
   const anim = document.createElement('style')
   anim.textContent = `
-    :host { all: initial; display: contents; }
+    :host { all: initial; display: contents; color-scheme: light; }
     * { box-sizing: border-box; }
     #sr-base { color: var(--color-text-primary); font-family: var(--font-body); background: transparent; display: contents; }
     @keyframes overlayIn {

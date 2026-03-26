@@ -118,16 +118,9 @@ function NotifItem({ sub, summary, onSnooze, onDismiss, onOpenEditor }: NotifIte
   const [acting, setActing] = useState(false)
   const todayStr = today()
 
-  const isActive =
-    (summary.state === 'due_today' || summary.state === 'overdue') &&
-    sub.lastReminderSentAt !== todayStr
-
-  const isDismissed =
-    (summary.state === 'due_today' || summary.state === 'overdue') &&
-    sub.lastReminderSentAt === todayStr
-
+  const isActive = summary.state === 'due_today' || summary.state === 'overdue'
   const isSnoozed = summary.state === 'snoozed'
-  const isInactive = isSnoozed || isDismissed
+  const isInactive = isSnoozed
 
   const copy = buildCopy(sub, summary)
   const badge = buildBadge(summary)
@@ -169,9 +162,6 @@ function NotifItem({ sub, summary, onSnooze, onDismiss, onOpenEditor }: NotifIte
             {isSnoozed && (
               <span className="notif-state-label notif-state-label--snoozed">Snoozed</span>
             )}
-            {isDismissed && (
-              <span className="notif-state-label notif-state-label--dismissed">Dismissed</span>
-            )}
             {isActive && (
               <span className={`reminder-badge reminder-badge--${badge.variant}`}>{badge.label}</span>
             )}
@@ -210,7 +200,6 @@ function NotifItem({ sub, summary, onSnooze, onDismiss, onOpenEditor }: NotifIte
 
 export default function NotificationBell({ subscriptions, prefs, onRefresh }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
-  const todayStr = today()
 
   const items = (prefs ? subscriptions : [])
     .filter(s => s.status === 'active')
@@ -221,9 +210,8 @@ export default function NotificationBell({ subscriptions, prefs, onRefresh }: Pr
     })
     .sort((a, b) => (STATE_ORDER[a.summary.state] ?? 99) - (STATE_ORDER[b.summary.state] ?? 99))
 
-  const activeCount = items.filter(({ sub, summary }) =>
-    (summary.state === 'due_today' || summary.state === 'overdue') &&
-    sub.lastReminderSentAt !== todayStr
+  const activeCount = items.filter(({ summary }) =>
+    summary.state === 'due_today' || summary.state === 'overdue'
   ).length
 
   return (

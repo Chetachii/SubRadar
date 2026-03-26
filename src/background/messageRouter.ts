@@ -1,7 +1,7 @@
 import type { DetectionResult } from '../types/subscription'
 import { getPreferences } from '../repository/preferencesRepository'
 import * as subscriptionService from '../services/subscriptionService'
-import { runScan } from './notifications'
+import { runScan, updateBadge, dispatchIfEligible } from './notifications'
 
 interface Message {
   type: string
@@ -19,8 +19,6 @@ export function registerMessageRouter(): void {
 }
 
 async function handleMessage(message: Message): Promise<unknown> {
-  const prefs = await getPreferences()
-
   switch (message.type) {
     case 'DETECTION_FOUND': {
       const result = message.payload as DetectionResult
@@ -29,16 +27,28 @@ async function handleMessage(message: Message): Promise<unknown> {
     }
 
     case 'SAVE_SUBSCRIPTION': {
+      const t0 = Date.now()
+      console.log('[SubRadar] SAVE_SUBSCRIPTION t=0', t0)
+      const prefs = await getPreferences()
       const input = message.payload as Parameters<typeof subscriptionService.createSubscription>[0]
       const sub = await subscriptionService.createSubscription(input, prefs)
-      runScan() // fire-and-forget: notify immediately if sub is already eligible
+      console.log('[SubRadar] subscription created in', Date.now() - t0, 'ms — dispatching inline')
+      // Dispatch immediately using already-loaded data — zero additional Supabase calls
+      const dispatched = dispatchIfEligible(sub, prefs)
+      // Run full scan async for badge + other subs; skip sub if already dispatched above
+      runScan({ prefs, skipIds: dispatched ? new Set([sub.id]) : undefined })
       return { ok: true, subscription: sub }
     }
 
     case 'UPDATE_SUBSCRIPTION': {
+      const t0 = Date.now()
+      console.log('[SubRadar] UPDATE_SUBSCRIPTION t=0', t0)
+      const prefs = await getPreferences()
       const { id, patch } = message.payload as { id: string; patch: Parameters<typeof subscriptionService.updateSubscription>[1] }
       const sub = await subscriptionService.updateSubscription(id, patch, prefs)
-      runScan() // fire-and-forget: notify immediately if updated sub is now eligible
+      console.log('[SubRadar] subscription updated in', Date.now() - t0, 'ms — dispatching inline')
+      const dispatched = dispatchIfEligible(sub, prefs)
+      runScan({ prefs, skipIds: dispatched ? new Set([sub.id]) : undefined })
       return { ok: true, subscription: sub }
     }
 
@@ -61,6 +71,7 @@ async function handleMessage(message: Message): Promise<unknown> {
     case 'SNOOZE_SUBSCRIPTION': {
       const { id, until } = message.payload as { id: string; until: string }
       const sub = await subscriptionService.setSnooze(id, until)
+      await updateBadge()
       return { ok: true, subscription: sub }
     }
 
@@ -73,6 +84,7 @@ async function handleMessage(message: Message): Promise<unknown> {
     case 'DISMISS_REMINDER': {
       const { id } = message.payload as { id: string }
       const sub = await subscriptionService.dismissReminder(id)
+      await updateBadge()
       return { ok: true, subscription: sub }
     }
 

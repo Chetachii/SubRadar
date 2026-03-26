@@ -46,10 +46,15 @@ function extractCurrency(): string | undefined {
 
 function extractBillingFrequency(): string | undefined {
   const text = (document.body?.innerText ?? '').toLowerCase()
-  if (text.includes('/year') || text.includes('per year') || text.includes('annually')) return 'yearly'
-  if (text.includes('/month') || text.includes('per month') || text.includes('monthly')) return 'monthly'
-  if (text.includes('/week') || text.includes('per week') || text.includes('weekly')) return 'weekly'
-  return undefined
+  const weeklyCount  = (text.match(/\/week|per week|weekly/g) ?? []).length
+  const monthlyCount = (text.match(/\/month|per month|monthly/g) ?? []).length
+  const yearlyCount  = (text.match(/\/year|per year|annually/g) ?? []).length
+  if (weeklyCount === 0 && monthlyCount === 0 && yearlyCount === 0) return undefined
+  if (weeklyCount > monthlyCount && weeklyCount > yearlyCount) return 'weekly'
+  // Prefer monthly on a tie — most SaaS pricing pages list annual as an upsell
+  // alongside the monthly plan the user is actually selecting
+  if (yearlyCount > monthlyCount) return 'yearly'
+  return 'monthly'
 }
 
 function extractTrialDuration(): number | undefined {

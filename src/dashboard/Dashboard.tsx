@@ -130,8 +130,16 @@ export default function Dashboard() {
       debounceTimer = setTimeout(load, 300)
     }
     document.addEventListener('visibilitychange', onVisible)
+
+    // Reload when the background scan completes (it stamps runtimeMeta after every scan)
+    const onStorageChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local' && changes.runtimeMeta) load()
+    }
+    chrome.storage.onChanged.addListener(onStorageChanged)
+
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
+      chrome.storage.onChanged.removeListener(onStorageChanged)
       if (debounceTimer) clearTimeout(debounceTimer)
     }
   }, [])

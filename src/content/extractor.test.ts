@@ -149,6 +149,18 @@ describe('extractSignals', () => {
       const result = extractSignals()
       expect(result.billingFrequency).toBeUndefined()
     })
+
+    it('prefers monthly when both monthly and yearly appear equally (pricing page upsell pattern)', () => {
+      document.body.innerHTML = '<div>Choose monthly ($10/month) or yearly ($96/year)</div>'
+      const result = extractSignals()
+      expect(result.billingFrequency).toBe('monthly')
+    })
+
+    it('returns yearly only when yearly signals outnumber monthly', () => {
+      document.body.innerHTML = '<div>Annual plan: $96/year — billed annually, save vs monthly</div>'
+      const result = extractSignals()
+      expect(result.billingFrequency).toBe('yearly')
+    })
   })
 
   describe('trial duration', () => {

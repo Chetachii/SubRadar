@@ -4,6 +4,7 @@
    ============================================ */
 
 :root, :host {
+  color-scheme: light;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --weight-normal: 400;
   --weight-medium: 500;
@@ -617,6 +618,7 @@ textarea.form-input {
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
+  color: var(--color-text-primary);
   cursor: pointer;
   transition:
     border-color var(--duration-fast) var(--ease-out),
