@@ -3,6 +3,8 @@ import type { Intent, Subscription } from '../types/subscription'
 import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon, AlertCircle as AlertCircleIcon, ChevronDown as ChevronDownIcon } from 'lucide-react'
 import { CURRENCIES } from '../utils/currency'
 import { today } from '../utils/dates'
+import { createSubscription } from '../services/subscriptionService'
+import { getPreferences } from '../repository/preferencesRepository'
 
 interface Props {
   onSaved: (sub: Subscription) => void
@@ -155,23 +157,22 @@ export default function ManualEntryForm({ onSaved }: Props) {
     setSubmitError(null)
 
     try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'SAVE_SUBSCRIPTION',
-        payload: {
-          serviceName: form.serviceName.trim(),
-          sourceDomain: extractDomain(form.website),
-          intent: intent!,
-          isFreeTrial,
-          detectionSource: 'manual_entry' as const,
-          cost: form.price ? parseFloat(form.price) : undefined,
-          currency,
-          subscriptionDate: TODAY,
-          renewalDate: form.renewalDate || undefined,
-          trialEndDate: isFreeTrial ? (form.trialEndDate || undefined) : undefined,
-        },
-      })
-      if (response?.error) throw new Error(response.error)
-      onSaved(response.subscription as Subscription)
+      const prefs = await getPreferences()
+      const sub = await createSubscription({
+        serviceName: form.serviceName.trim(),
+        sourceDomain: extractDomain(form.website),
+        intent: intent!,
+        isFreeTrial,
+        detectionSource: 'manual_entry' as const,
+        cost: form.price ? parseFloat(form.price) : undefined,
+        currency,
+        subscriptionDate: TODAY,
+        renewalDate: form.renewalDate || undefined,
+        trialEndDate: isFreeTrial ? (form.trialEndDate || undefined) : undefined,
+      }, prefs)
+      // Fire-and-forget: ask background to scan for notifications
+      chrome.runtime.sendMessage({ type: 'RUN_REMINDER_SCAN' }).catch(() => {})
+      onSaved(sub)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to save. Please try again.')
     } finally {

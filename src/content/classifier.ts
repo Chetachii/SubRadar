@@ -13,6 +13,8 @@ const TRIAL_PHRASES = [
   'try for free',
   'trial period',
   'days free',
+  'start for free',
+  'start free',
 ]
 
 const SUBSCRIPTION_CTAS = [
@@ -22,6 +24,11 @@ const SUBSCRIPTION_CTAS = [
   'start subscription',
   'choose plan',
   'select plan',
+  'pick a plan',
+  'view plans',
+  'see plans',
+  'upgrade now',
+  'buy now',
 ]
 
 const PRICING_SIGNALS = [
@@ -33,6 +40,12 @@ const PRICING_SIGNALS = [
   '/year',
   '/mo',
   '/yr',
+  'per seat',
+  'per editor',
+  'per user',
+  'seat/month',
+  'editor/month',
+  'user/month',
 ]
 
 const CHECKOUT_PROVIDERS = ['stripe.com', 'paddle.com', 'gumroad.com', 'recurly.com']

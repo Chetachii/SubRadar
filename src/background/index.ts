@@ -5,6 +5,13 @@ import { registerMessageRouter } from './messageRouter'
 // Register message router
 registerMessageRouter()
 
+// Keep the service worker alive while any popup/overlay port is open
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'popup-keepalive' || port.name === 'overlay-keepalive') {
+    port.onDisconnect.addListener(() => {})
+  }
+})
+
 // Register alarm listener
 chrome.alarms.onAlarm.addListener(handleAlarm)
 

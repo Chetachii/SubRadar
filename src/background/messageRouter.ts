@@ -42,6 +42,11 @@ async function handleMessage(message: Message): Promise<unknown> {
       return { ok: true, subscription: sub }
     }
 
+    case 'OPEN_DASHBOARD': {
+      chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') })
+      return { ok: true }
+    }
+
     case 'RUN_REMINDER_SCAN': {
       await runScan()
       return { ok: true }

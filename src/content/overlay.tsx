@@ -69,6 +69,9 @@ function OverlayShell({ result, onClose }: ShellProps) {
 }
 
 export function mountOverlay(result: DetectionResult) {
+  // Keep the background service worker alive while the overlay is open
+  const keepAlivePort = chrome.runtime.connect({ name: 'overlay-keepalive' })
+
   // Host element — sits outside page DOM tree
   const host = document.createElement('div')
   host.id = 'subradar-overlay-host'
@@ -112,6 +115,7 @@ export function mountOverlay(result: DetectionResult) {
   shadow.appendChild(mountContainer)
 
   function teardown() {
+    keepAlivePort.disconnect()
     root.unmount()
     host.remove()
   }
