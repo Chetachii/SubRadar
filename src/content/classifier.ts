@@ -5,7 +5,7 @@ interface ClassifierResult {
   matchedSignals: string[]
 }
 
-const URL_PATTERNS = /\/(pricing|checkout|plans|billing|subscribe|trial|upgrade)/i
+const URL_PATTERNS = /\/(pricing|checkout|plans|billing|subscribe|trial|upgrade|premium|signup|join)/i
 
 const TRIAL_PHRASES = [
   'start free trial',
@@ -29,6 +29,11 @@ const SUBSCRIPTION_CTAS = [
   'see plans',
   'upgrade now',
   'buy now',
+  'get premium',
+  'go premium',
+  'start free',
+  'try free',
+  'join now',
 ]
 
 const PRICING_SIGNALS = [

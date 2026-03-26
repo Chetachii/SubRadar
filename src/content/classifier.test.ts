@@ -19,8 +19,8 @@ afterEach(() => {
 })
 
 describe('CONFIDENCE_THRESHOLD', () => {
-  it('is set to 5', () => {
-    expect(CONFIDENCE_THRESHOLD).toBe(5)
+  it('is set to 7', () => {
+    expect(CONFIDENCE_THRESHOLD).toBe(7)
   })
 })
 
@@ -134,5 +134,124 @@ describe('classifyPage', () => {
     setBodyText('Hello world')
     const { matchedSignals } = classifyPage()
     expect(matchedSignals).toHaveLength(0)
+  })
+
+  // New URL patterns
+  it('matches /premium URL pattern', () => {
+    setLocation('https://www.spotify.com/us/premium/')
+    const { matchedSignals } = classifyPage()
+    expect(matchedSignals).toContain('url_pattern')
+  })
+
+  it('matches /signup URL pattern', () => {
+    setLocation('https://www.netflix.com/signup')
+    const { matchedSignals } = classifyPage()
+    expect(matchedSignals).toContain('url_pattern')
+  })
+
+  it('matches /join URL pattern', () => {
+    setLocation('https://example.com/join')
+    const { matchedSignals } = classifyPage()
+    expect(matchedSignals).toContain('url_pattern')
+  })
+
+  it('matches /account/upgrade URL pattern via /upgrade token', () => {
+    setLocation('https://example.com/account/upgrade')
+    const { matchedSignals } = classifyPage()
+    expect(matchedSignals).toContain('url_pattern')
+  })
+
+  // New CTAs
+  it('detects get premium CTA', () => {
+    setLocation('https://example.com')
+    setBodyText('Get Premium and listen without ads')
+    const { matchedSignals } = classifyPage()
+    expect(matchedSignals).toContain('subscription_cta')
+  })
+
+  it('detects go premium CTA', () => {
+    setLocation('https://example.com')
+    setBodyText('Go Premium today for unlimited access')
+    const { matchedSignals } = classifyPage()
+    expect(matchedSignals).toContain('subscription_cta')
+  })
+
+  it('detects try free CTA', () => {
+    setLocation('https://example.com')
+    setBodyText('Try free for 30 days, cancel anytime')
+    const { matchedSignals } = classifyPage()
+    expect(matchedSignals).toContain('subscription_cta')
+  })
+
+  it('detects join now CTA', () => {
+    setLocation('https://example.com')
+    setBodyText('Join now and start your membership')
+    const { matchedSignals } = classifyPage()
+    expect(matchedSignals).toContain('subscription_cta')
+  })
+
+  it('detects start free CTA', () => {
+    setLocation('https://example.com')
+    setBodyText('Start free, upgrade when ready')
+    const { matchedSignals } = classifyPage()
+    expect(matchedSignals).toContain('subscription_cta')
+  })
+
+  // Real-service scenarios
+  describe('Spotify /premium', () => {
+    it('scores >= 7 with typical Premium page content', () => {
+      // URL: /premium (+2), CTA: "get premium" (+3), pricing: "/month" (+2) = 7
+      setLocation('https://www.spotify.com/us/premium/')
+      setBodyText('Get Premium $9.99/month. Listen without ads. Cancel anytime.')
+      const { score } = classifyPage()
+      expect(score).toBeGreaterThanOrEqual(7)
+    })
+
+    it('matches url_pattern, subscription_cta, and pricing_block signals', () => {
+      setLocation('https://www.spotify.com/us/premium/')
+      setBodyText('Get Premium $9.99/month. Listen without ads. Cancel anytime.')
+      const { matchedSignals } = classifyPage()
+      expect(matchedSignals).toContain('url_pattern')
+      expect(matchedSignals).toContain('subscription_cta')
+      expect(matchedSignals).toContain('pricing_block')
+    })
+  })
+
+  describe('Netflix /signup', () => {
+    it('scores >= 7 with typical signup page content', () => {
+      // URL: /signup (+2), CTA: "get started" (+3), pricing: "/month" (+2) = 7
+      setLocation('https://www.netflix.com/signup')
+      setBodyText('Get Started. $15.49/month. Watch anywhere. Cancel anytime.')
+      const { score } = classifyPage()
+      expect(score).toBeGreaterThanOrEqual(7)
+    })
+
+    it('matches url_pattern, subscription_cta, and pricing_block signals', () => {
+      setLocation('https://www.netflix.com/signup')
+      setBodyText('Get Started. $15.49/month. Watch anywhere. Cancel anytime.')
+      const { matchedSignals } = classifyPage()
+      expect(matchedSignals).toContain('url_pattern')
+      expect(matchedSignals).toContain('subscription_cta')
+      expect(matchedSignals).toContain('pricing_block')
+    })
+  })
+
+  describe('GitHub /pricing', () => {
+    it('scores >= 7 with typical pricing page content', () => {
+      // URL: /pricing (+2), CTA: "get started" (+3), pricing: "/month" (+2) = 7
+      setLocation('https://github.com/pricing')
+      setBodyText('Get started for free. $4/month per user. Upgrade anytime.')
+      const { score } = classifyPage()
+      expect(score).toBeGreaterThanOrEqual(7)
+    })
+
+    it('matches url_pattern, subscription_cta, and pricing_block signals', () => {
+      setLocation('https://github.com/pricing')
+      setBodyText('Get started for free. $4/month per user. Upgrade anytime.')
+      const { matchedSignals } = classifyPage()
+      expect(matchedSignals).toContain('url_pattern')
+      expect(matchedSignals).toContain('subscription_cta')
+      expect(matchedSignals).toContain('pricing_block')
+    })
   })
 })
