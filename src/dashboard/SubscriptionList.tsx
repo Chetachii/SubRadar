@@ -2,9 +2,9 @@ import type { Subscription } from '../types/subscription'
 import { groupByIntent } from '../services/statusService'
 import SubscriptionCard from './SubscriptionCard'
 import { today } from '../utils/dates'
-import { Ban as BanIcon, Bell as BellIcon, RotateCcw as RotateCcwIcon, Radio as RadioIcon, Search as SearchIcon } from 'lucide-react'
+import { Ban as BanIcon, Bell as BellIcon, RotateCcw as RotateCcwIcon, Radio as RadioIcon, Search as SearchIcon, Archive as ArchiveIcon } from 'lucide-react'
 
-type FilterTab = 'all' | 'cancel' | 'renew' | 'remind_before_billing'
+type FilterTab = 'all' | 'cancel' | 'renew' | 'remind_before_billing' | 'archived'
 
 interface Props {
   subscriptions: Subscription[]
@@ -34,6 +34,11 @@ const EMPTY_STATES: Record<FilterTab, { icon: React.ReactElement; title: string;
     title: 'No reminders set',
     hint: 'Subscriptions you want to decide on later will appear here.',
   },
+  archived: {
+    icon: <ArchiveIcon size={40} />,
+    title: 'No archived subscriptions',
+    hint: 'Subscriptions overdue by 7+ days are automatically archived here.',
+  },
 }
 
 function matches(sub: Subscription, query: string): boolean {
@@ -52,6 +57,7 @@ export default function SubscriptionList({ subscriptions, filter, search, onRefr
     filter === 'cancel' ? groups.cancel :
     filter === 'renew' ? groups.renew :
     filter === 'remind_before_billing' ? groups.remindBeforeBilling :
+    filter === 'archived' ? subscriptions.filter((s) => s.status === 'archived') :
     [...groups.cancel, ...groups.renew, ...groups.remindBeforeBilling]
 
   const items = [...unsorted].sort((a, b) => {

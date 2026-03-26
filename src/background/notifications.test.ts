@@ -15,6 +15,7 @@ vi.mock('../services/subscriptionService', () => ({
   dismissReminder: vi.fn(),
   stampReminderSent: vi.fn(),
   rollRenewalDate: vi.fn(),
+  archiveSubscription: vi.fn(),
 }))
 
 vi.mock('../services/reminderService', () => ({
@@ -90,6 +91,7 @@ describe('dispatchReminderNotification', () => {
     expect(chrome.notifications.create).toHaveBeenCalledWith(
       'subradar-test-123-early',
       expect.any(Object),
+      expect.any(Function),
     )
   })
 })
@@ -105,7 +107,7 @@ describe('runScan', () => {
 
     await runScan()
 
-    expect(chrome.notifications.create).toHaveBeenCalledWith('subradar-due-sub-early', expect.any(Object))
+    expect(chrome.notifications.create).toHaveBeenCalledWith('subradar-due-sub-early', expect.any(Object), expect.any(Function))
     expect(subService.stampReminderSent).toHaveBeenCalledWith('due-sub')
     expect(subService.rollRenewalDate).not.toHaveBeenCalled()
   })
@@ -120,7 +122,7 @@ describe('runScan', () => {
 
     await runScan()
 
-    expect(chrome.notifications.create).toHaveBeenCalledWith('subradar-renew-sub-renewal', expect.any(Object))
+    expect(chrome.notifications.create).toHaveBeenCalledWith('subradar-renew-sub-renewal', expect.any(Object), expect.any(Function))
     expect(subService.rollRenewalDate).toHaveBeenCalledWith('renew-sub', expect.any(Object))
     expect(subService.stampReminderSent).not.toHaveBeenCalled()
   })
@@ -264,5 +266,56 @@ describe('updateBadge', () => {
     await updateBadge()
 
     expect(chrome.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#E74C3C' })
+  })
+})
+
+describe('runScan — auto-archive overdue subs', () => {
+  // System time is set to 2024-06-15 in beforeEach
+
+  it('archives active sub overdue by 8 days and skips notification', async () => {
+    const sub = makeSubscription({ id: 'overdue-8', renewalDate: '2024-06-07' }) // 8 days before 2024-06-15
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([sub])
+    vi.mocked(prefsRepo.getPreferences).mockResolvedValue(makePreferences())
+    vi.mocked(subService.archiveSubscription).mockResolvedValue(sub)
+    vi.mocked(reminderService.scanDueReminders).mockReturnValue([])
+
+    await runScan()
+
+    expect(subService.archiveSubscription).toHaveBeenCalledWith('overdue-8')
+    expect(chrome.notifications.create).not.toHaveBeenCalled()
+  })
+
+  it('archives sub overdue by exactly 7 days (boundary)', async () => {
+    const sub = makeSubscription({ id: 'overdue-7', renewalDate: '2024-06-08' }) // exactly 7 days before 2024-06-15
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([sub])
+    vi.mocked(prefsRepo.getPreferences).mockResolvedValue(makePreferences())
+    vi.mocked(subService.archiveSubscription).mockResolvedValue(sub)
+    vi.mocked(reminderService.scanDueReminders).mockReturnValue([])
+
+    await runScan()
+
+    expect(subService.archiveSubscription).toHaveBeenCalledWith('overdue-7')
+  })
+
+  it('does not archive sub overdue by only 6 days', async () => {
+    const sub = makeSubscription({ id: 'overdue-6', renewalDate: '2024-06-09' }) // 6 days before TODAY
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([sub])
+    vi.mocked(prefsRepo.getPreferences).mockResolvedValue(makePreferences())
+    vi.mocked(reminderService.scanDueReminders).mockReturnValue([])
+
+    await runScan()
+
+    expect(subService.archiveSubscription).not.toHaveBeenCalled()
+  })
+
+  it('does not archive already-archived sub', async () => {
+    const sub = makeSubscription({ id: 'already-archived', renewalDate: '2024-06-01', status: 'archived' })
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([sub])
+    vi.mocked(prefsRepo.getPreferences).mockResolvedValue(makePreferences())
+    vi.mocked(reminderService.scanDueReminders).mockReturnValue([])
+
+    await runScan()
+
+    expect(subService.archiveSubscription).not.toHaveBeenCalled()
   })
 })

@@ -67,6 +67,10 @@ export async function cancelSubscription(id: string): Promise<Subscription> {
   return repo.updateSubscription(id, { status: 'canceled' })
 }
 
+export async function deleteSubscription(id: string): Promise<void> {
+  return repo.deleteSubscription(id)
+}
+
 export async function markRenewed(id: string): Promise<Subscription> {
   const sub = await repo.getSubscriptionById(id)
   if (!sub) throw new Error(`Subscription not found: ${id}`)

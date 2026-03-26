@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import type { Intent } from '../types/subscription'
+import type { Intent, Subscription } from '../types/subscription'
 import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon, AlertCircle as AlertCircleIcon, ChevronDown as ChevronDownIcon } from 'lucide-react'
 import { CURRENCIES } from '../utils/currency'
 import { today } from '../utils/dates'
 
 interface Props {
-  onSaved: () => void
+  onSaved: (sub: Subscription) => void
 }
 
 interface FormState {
@@ -19,6 +19,7 @@ interface FormState {
 interface Errors {
   serviceName?: string
   price?: string
+  renewalDate?: string
 }
 
 const INTENT_OPTIONS: {
@@ -73,6 +74,7 @@ function extractDomain(website: string): string | undefined {
 function validate(form: FormState): Errors {
   const errors: Errors = {}
   if (!form.serviceName.trim()) errors.serviceName = 'Service name is required'
+  if (!form.renewalDate) errors.renewalDate = 'Renewal date is required'
   if (form.price && isNaN(parseFloat(form.price))) errors.price = 'Enter a valid price'
   return errors
 }
@@ -169,7 +171,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
         },
       })
       if (response?.error) throw new Error(response.error)
-      onSaved()
+      onSaved(response.subscription as Subscription)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to save. Please try again.')
     } finally {
@@ -277,14 +279,21 @@ export default function ManualEntryForm({ onSaved }: Props) {
             />
           </div>
           <div className="form-field form-field--spaced form-field--mt">
-            <label className="form-label form-label--primary">Renewal date</label>
+            <label className="form-label form-label--primary">
+              Renewal date <span className="form-label-required">*</span>
+            </label>
             <input
-              className="form-input form-input--comfort"
+              className={`form-input form-input--comfort${errors.renewalDate && touched.renewalDate ? ' form-input--error' : ''}`}
               type="date"
               value={form.renewalDate}
               onChange={(e) => set('renewalDate', e.target.value)}
+              onBlur={() => blur('renewalDate')}
             />
-            <p className="form-hint-inline">The date billing starts or the next charge happens.</p>
+            {errors.renewalDate && touched.renewalDate ? (
+              <p className="form-error-msg">{errors.renewalDate}</p>
+            ) : (
+              <p className="form-hint-inline">The date billing starts or the next charge happens.</p>
+            )}
           </div>
           {isFreeTrial && (
             <div className="form-field form-field--spaced form-field--mt">

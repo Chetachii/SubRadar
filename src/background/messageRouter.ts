@@ -31,19 +31,25 @@ async function handleMessage(message: Message): Promise<unknown> {
     case 'SAVE_SUBSCRIPTION': {
       const input = message.payload as Parameters<typeof subscriptionService.createSubscription>[0]
       const sub = await subscriptionService.createSubscription(input, prefs)
-      await runScan()
+      runScan() // fire-and-forget: notify immediately if sub is already eligible
       return { ok: true, subscription: sub }
     }
 
     case 'UPDATE_SUBSCRIPTION': {
       const { id, patch } = message.payload as { id: string; patch: Parameters<typeof subscriptionService.updateSubscription>[1] }
       const sub = await subscriptionService.updateSubscription(id, patch, prefs)
-      await runScan()
+      runScan() // fire-and-forget: notify immediately if updated sub is now eligible
       return { ok: true, subscription: sub }
     }
 
     case 'RUN_REMINDER_SCAN': {
       await runScan()
+      return { ok: true }
+    }
+
+    case 'DELETE_SUBSCRIPTION': {
+      const { id } = message.payload as { id: string }
+      await subscriptionService.deleteSubscription(id)
       return { ok: true }
     }
 

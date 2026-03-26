@@ -18,6 +18,7 @@ vi.mock('../repository/preferencesRepository', () => ({
 vi.mock('../services/subscriptionService', () => ({
   stampReminderSent: vi.fn(),
   rollRenewalDate: vi.fn(),
+  archiveSubscription: vi.fn(),
 }))
 
 // NOTE: reminderService is NOT mocked — real eligibility logic runs end-to-end
@@ -55,6 +56,7 @@ describe('runScan — real eligibility (integration)', () => {
     expect(chrome.notifications.create).toHaveBeenCalledWith(
       'subradar-sub-today-renewal',
       expect.objectContaining({ type: 'basic' }),
+      expect.any(Function),
     )
   })
 
@@ -67,6 +69,7 @@ describe('runScan — real eligibility (integration)', () => {
     expect(chrome.notifications.create).toHaveBeenCalledWith(
       'subradar-sub-early-early',
       expect.objectContaining({ type: 'basic' }),
+      expect.any(Function),
     )
   })
 
@@ -121,6 +124,7 @@ describe('runScan — real eligibility (integration)', () => {
     expect(chrome.notifications.create).toHaveBeenCalledWith(
       'subradar-sub-prior-renewal',
       expect.any(Object),
+      expect.any(Function),
     )
   })
 
@@ -183,5 +187,38 @@ describe('runScan — real eligibility (integration)', () => {
 
     const [, opts] = vi.mocked(chrome.notifications.create).mock.calls[0]
     expect((opts as chrome.notifications.NotificationOptions).message).toContain('3 days')
+  })
+})
+
+describe('runScan — auto-archive integration', () => {
+  // System time is set to 2024-06-15 in beforeEach
+
+  it('archives active sub overdue by 8 days, does not fire notification', async () => {
+    const sub = makeSubscription({ id: 'integ-overdue', renewalDate: '2024-06-07', status: 'active' })
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([sub])
+    vi.mocked(subService.archiveSubscription).mockResolvedValue(makeSubscription())
+
+    await runScan()
+
+    expect(subService.archiveSubscription).toHaveBeenCalledWith('integ-overdue')
+    expect(chrome.notifications.create).not.toHaveBeenCalled()
+  })
+
+  it('does not archive sub overdue by 6 days (below threshold)', async () => {
+    const sub = makeSubscription({ id: 'integ-not-overdue', renewalDate: '2024-06-09', status: 'active' })
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([sub])
+
+    await runScan()
+
+    expect(subService.archiveSubscription).not.toHaveBeenCalled()
+  })
+
+  it('does not archive already-archived sub', async () => {
+    const sub = makeSubscription({ id: 'integ-archived', renewalDate: '2024-06-01', status: 'archived' })
+    vi.mocked(subRepo.listSubscriptions).mockResolvedValue([sub])
+
+    await runScan()
+
+    expect(subService.archiveSubscription).not.toHaveBeenCalled()
   })
 })

@@ -2,11 +2,10 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import type { Subscription } from '../types/subscription'
 import { listSubscriptions, createSubscription, deleteSubscription } from '../repository/subscriptionRepository'
 import SubscriptionList from './SubscriptionList'
-import ReminderSection from './ReminderSection'
-import { getReminderState } from '../services/reminderService'
 import { getPreferences } from '../repository/preferencesRepository'
 import type { Preferences } from '../types/preferences'
 import { Ban as BanIcon, Bell as BellIcon, RotateCcw as RotateCcwIcon, X as XIcon, Search as SearchIcon } from 'lucide-react'
+import NotificationBell from './NotificationBell'
 
 function useCountUp(target: number) {
   const [value, setValue] = useState(0)
@@ -28,14 +27,14 @@ function useCountUp(target: number) {
   return value
 }
 
-type ViewTab = 'subscriptions' | 'reminders'
-type FilterTab = 'all' | 'cancel' | 'renew' | 'remind_before_billing'
+type FilterTab = 'all' | 'cancel' | 'renew' | 'remind_before_billing' | 'archived'
 
 const TABS: { value: FilterTab; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'cancel', label: 'Cancel' },
   { value: 'renew', label: 'Renew' },
   { value: 'remind_before_billing', label: 'Remind Before Billing' },
+  { value: 'archived', label: 'Archived' },
 ]
 
 function LoadingSkeleton() {
@@ -60,7 +59,6 @@ export default function Dashboard() {
   const [filter, setFilter] = useState<FilterTab>('all')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<ViewTab>('subscriptions')
   const [prefs, setPrefs] = useState<Preferences | null>(null)
 
   async function load() {
@@ -140,16 +138,12 @@ export default function Dashboard() {
 
   const summary = useMemo(() => {
     const live = subscriptions.filter((s) => s.status !== 'archived' && s.status !== 'canceled')
-    const reminderCount = prefs
-      ? live.filter((s) => getReminderState(s, prefs) !== 'upcoming').length
-      : 0
     return {
       cancel: live.filter((s) => s.intent === 'cancel').length,
       renew: live.filter((s) => s.intent === 'renew').length,
       remind: live.filter((s) => s.intent === 'remind_before_billing').length,
-      reminderCount,
     }
-  }, [subscriptions, prefs])
+  }, [subscriptions])
 
   const cancelCount = useCountUp(summary.cancel)
   const renewCount = useCountUp(summary.renew)
@@ -163,9 +157,12 @@ export default function Dashboard() {
             <h1 className="dashboard-title">SubRadar</h1>
             <p className="dashboard-subtitle">Track free trials and subscriptions. Stay ahead of billing.</p>
           </div>
-          <div className="dev-tools">
-            <button className="btn btn--ghost" onClick={seedTestData}>Seed test data</button>
-            <button className="btn btn--ghost" onClick={clearTestData}>Clear</button>
+          <div className="dashboard-header-actions">
+            <NotificationBell subscriptions={subscriptions} prefs={prefs} onRefresh={load} />
+            <div className="dev-tools">
+              <button className="btn btn--ghost" onClick={seedTestData}>Seed test data</button>
+              <button className="btn btn--ghost" onClick={clearTestData}>Clear</button>
+            </div>
           </div>
         </div>
       </header>
@@ -196,70 +193,46 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="view-tabs">
-        <button
-          className={`view-tab ${view === 'subscriptions' ? 'view-tab--active' : ''}`}
-          onClick={() => setView('subscriptions')}
-        >
-          Subscriptions
-        </button>
-        <button
-          className={`view-tab ${view === 'reminders' ? 'view-tab--active' : ''}`}
-          onClick={() => setView('reminders')}
-        >
-          Reminders
-          {summary.reminderCount > 0 && (
-            <span className="view-tab-badge">{summary.reminderCount}</span>
-          )}
-        </button>
+      <div className="search-bar">
+        <span className="search-icon" aria-hidden="true">
+          <SearchIcon size={15} />
+        </span>
+        <input
+          className="search-input"
+          type="search"
+          placeholder="Search subscriptions…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search subscriptions"
+        />
+        {search && (
+          <button className="search-clear" onClick={() => setSearch('')} aria-label="Clear search">
+            <XIcon size={14} aria-hidden="true" />
+          </button>
+        )}
       </div>
 
-      {view === 'subscriptions' ? (
-        <>
-          <div className="search-bar">
-            <span className="search-icon" aria-hidden="true">
-              <SearchIcon size={15} />
-            </span>
-            <input
-              className="search-input"
-              type="search"
-              placeholder="Search subscriptions…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search subscriptions"
-            />
-            {search && (
-              <button className="search-clear" onClick={() => setSearch('')} aria-label="Clear search">
-                <XIcon size={14} aria-hidden="true" />
-              </button>
-            )}
-          </div>
+      <div className="filter-bar">
+        {TABS.map((tab) => (
+          <button
+            key={tab.value}
+            className={`filter-tab ${filter === tab.value ? 'filter-tab--active' : ''}`}
+            onClick={() => setFilter(tab.value)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="filter-bar">
-            {TABS.map((tab) => (
-              <button
-                key={tab.value}
-                className={`filter-tab ${filter === tab.value ? 'filter-tab--active' : ''}`}
-                onClick={() => setFilter(tab.value)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {loading ? (
-            <LoadingSkeleton />
-          ) : (
-            <SubscriptionList
-              subscriptions={subscriptions}
-              filter={filter}
-              search={search}
-              onRefresh={load}
-            />
-          )}
-        </>
+      {loading ? (
+        <LoadingSkeleton />
       ) : (
-        <ReminderSection subscriptions={subscriptions} onRefresh={load} />
+        <SubscriptionList
+          subscriptions={subscriptions}
+          filter={filter}
+          search={search}
+          onRefresh={load}
+        />
       )}
     </div>
   )

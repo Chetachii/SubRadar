@@ -61,7 +61,26 @@ export async function runScan(): Promise<void> {
   console.log('[SubRadar] runScan started')
   const [subscriptions, prefs] = await Promise.all([listSubscriptions(), getPreferences()])
   console.log('[SubRadar] subs loaded:', subscriptions.length, '| notificationsEnabled:', prefs.notificationsEnabled)
-  const due = scanDueReminders(subscriptions, prefs)
+
+  // Auto-archive active subscriptions overdue by 7+ days
+  const overdueIds = new Set(
+    subscriptions
+      .filter((s) => s.status === 'active' && s.renewalDate && daysBetween(today(), s.renewalDate) <= -7)
+      .map((s) => s.id)
+  )
+  for (const id of overdueIds) {
+    await subscriptionService.archiveSubscription(id)
+  }
+  if (overdueIds.size > 0) {
+    console.log('[SubRadar] auto-archived overdue subs:', [...overdueIds])
+  }
+
+  // Exclude just-archived subs from the reminder scan
+  const eligibleSubs = overdueIds.size > 0
+    ? subscriptions.filter((s) => !overdueIds.has(s.id))
+    : subscriptions
+
+  const due = scanDueReminders(eligibleSubs, prefs)
   console.log('[SubRadar] eligible subs:', due.map(s => `${s.serviceName} (renewalDate: ${s.renewalDate}, lastReminderSentAt: ${s.lastReminderSentAt})`))
 
   for (const sub of due) {

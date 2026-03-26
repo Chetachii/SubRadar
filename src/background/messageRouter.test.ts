@@ -9,6 +9,7 @@ vi.mock('../repository/preferencesRepository', () => ({
 vi.mock('../services/subscriptionService', () => ({
   createSubscription: vi.fn(),
   updateSubscription: vi.fn(),
+  deleteSubscription: vi.fn(),
   setSnooze: vi.fn(),
   markRenewed: vi.fn(),
 }))
@@ -89,6 +90,17 @@ describe('UPDATE_SUBSCRIPTION', () => {
     expect(notifications.runScan).toHaveBeenCalled()
     expect(response.ok).toBe(true)
     expect(response.subscription).toEqual(sub)
+  })
+})
+
+describe('DELETE_SUBSCRIPTION', () => {
+  it('calls deleteSubscription and returns ok', async () => {
+    vi.mocked(subService.deleteSubscription).mockResolvedValue(undefined)
+
+    const response = await dispatch('DELETE_SUBSCRIPTION', { id: 'sub-123' })
+
+    expect(subService.deleteSubscription).toHaveBeenCalledWith('sub-123')
+    expect(response).toEqual({ ok: true })
   })
 })
 

@@ -1247,6 +1247,58 @@ textarea.form-input {
   padding-top: var(--space-4);
 }
 
+.form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-4);
+}
+
+.form-footer .form-actions {
+  padding-top: 0;
+}
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(28, 25, 23, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn var(--duration-fast) var(--ease-out) both;
+}
+
+.confirm-panel {
+  background: var(--color-surface);
+  border-radius: 16px;
+  padding: 24px;
+  width: 320px;
+  box-shadow: var(--shadow-lg);
+  animation: modalEntry 200ms var(--ease-out-expo) both;
+}
+
+.confirm-heading {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+
+.confirm-body {
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+  margin: 0 0 20px;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
 /* Trial toggle in modal */
 .trial-toggle--modal {
   display: flex;
@@ -1669,3 +1721,32 @@ textarea.form-input {
   color: var(--color-text-tertiary);
   margin: 0;
 }
+
+/* ── Notification Bell ──────────────────────────────────────── */
+.notif-bell-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-secondary); cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast); }
+.notif-bell-btn:hover { background: var(--color-ground); color: var(--color-primary); }
+.notif-bell-badge { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--color-cancel); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; pointer-events: none; }
+
+/* ── Notification Popover ───────────────────────────────────── */
+.notif-popover { width: 380px; max-height: 480px; display: flex; flex-direction: column; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); overflow: hidden; z-index: 200; animation: fadeInScale var(--duration-fast) var(--ease-out); }
+.notif-popover-header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
+.notif-popover-title { font-size: 13px; font-weight: 600; color: var(--color-primary-text); flex: 1; }
+
+/* ── Notification List ──────────────────────────────────────── */
+.notif-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.notif-item { padding: 12px 16px; border-bottom: 1px solid var(--color-border-subtle); transition: background var(--duration-fast); }
+.notif-item:last-child { border-bottom: none; }
+.notif-item--inactive { opacity: 0.6; cursor: pointer; }
+.notif-item--inactive:hover { background: var(--color-ground); }
+.notif-item-row { display: flex; align-items: flex-start; gap: 10px; }
+.notif-item-body { flex: 1; min-width: 0; }
+.notif-item-head { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; flex-wrap: wrap; }
+.notif-item-name { font-size: 13px; font-weight: 600; color: var(--color-primary-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notif-item-copy { font-size: 12px; color: var(--color-secondary); line-height: 1.4; margin-bottom: 4px; }
+.notif-item-meta { font-size: 11px; color: var(--color-tertiary); margin-bottom: 6px; }
+.notif-item-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.notif-state-label { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 9999px; }
+.notif-state-label--snoozed { background: var(--color-border); color: var(--color-tertiary); }
+.notif-state-label--dismissed { background: var(--color-border); color: var(--color-tertiary); }
+.notif-empty { padding: 32px 16px; text-align: center; font-size: 13px; color: var(--color-tertiary); }
+.dashboard-header-actions { display: flex; align-items: center; gap: 8px; }

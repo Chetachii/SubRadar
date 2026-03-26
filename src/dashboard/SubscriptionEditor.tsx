@@ -8,6 +8,7 @@ interface Props {
   subscription: Subscription
   onSave: () => void
   onClose: () => void
+  onDelete: () => void
 }
 
 const INTENT_OPTIONS: { value: Intent; label: string; desc: string }[] = [
@@ -29,7 +30,7 @@ const INTENT_OPTIONS: { value: Intent; label: string; desc: string }[] = [
 ]
 
 
-export default function SubscriptionEditor({ subscription: sub, onSave, onClose }: Props) {
+export default function SubscriptionEditor({ subscription: sub, onSave, onClose, onDelete }: Props) {
   const [serviceName, setServiceName] = useState(sub.serviceName)
   const [intent, setIntent] = useState<Intent>(sub.intent)
   const [trialEndDate, setTrialEndDate] = useState(sub.trialEndDate ?? '')
@@ -39,6 +40,8 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
     CURRENCIES.find((c) => c.code === sub.currency) ? (sub.currency ?? 'USD') : 'USD'
   )
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [closing, setClosing] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -51,25 +54,28 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
     return () => clearTimeout(t)
   }, [closing, onClose])
 
-  // Click outside: check mousedown target against panel
+  // Click outside: check mousedown target against panel (disabled while confirm is open)
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
+      if (confirmDelete) return
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         dismiss()
       }
     }
     document.addEventListener('mousedown', handleMouseDown)
     return () => document.removeEventListener('mousedown', handleMouseDown)
-  }, [dismiss])
+  }, [dismiss, confirmDelete])
 
-  // Escape key
+  // Escape key — cancel confirm first if open, otherwise close editor
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') dismiss()
+      if (e.key === 'Escape') {
+        if (confirmDelete) { setConfirmDelete(false) } else { dismiss() }
+      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [dismiss])
+  }, [dismiss, confirmDelete])
 
   // Lock body scroll
   useEffect(() => {
@@ -106,9 +112,26 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
     }
   }
 
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'DELETE_SUBSCRIPTION',
+        payload: { id: sub.id },
+      })
+      if (response?.error) throw new Error(response.error)
+      onDelete()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+      setConfirmDelete(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const selectedIntentDesc = INTENT_OPTIONS.find((o) => o.value === intent)?.desc
 
-  return createPortal(
+  const editModal = createPortal(
     <div className={`modal-overlay${closing ? ' modal-overlay--closing' : ''}`}>
       <div
         className={`modal-panel${closing ? ' modal-panel--closing' : ''}`}
@@ -159,14 +182,50 @@ export default function SubscriptionEditor({ subscription: sub, onSave, onClose 
 
         {error && <p className="form-error">{error}</p>}
 
-        <div className="form-actions">
-          <button className="btn btn--secondary btn--lg" onClick={dismiss}>Cancel</button>
-          <button className="btn btn--primary btn--lg" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
+        <div className="form-footer">
+          <button className="btn btn--danger btn--lg" onClick={() => setConfirmDelete(true)}>
+            Delete
           </button>
+          <div className="form-actions">
+            <button className="btn btn--secondary btn--lg" onClick={dismiss}>Cancel</button>
+            <button className="btn btn--primary btn--lg" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
     </div>,
     document.body
+  )
+
+  return (
+    <>
+      {editModal}
+      {confirmDelete && createPortal(
+        <div className="confirm-overlay" onClick={() => setConfirmDelete(false)}>
+          <div
+            className="confirm-panel"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-heading"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 id="confirm-heading" className="confirm-heading">
+              Delete {sub.serviceName}?
+            </h4>
+            <p className="confirm-body">This cannot be undone.</p>
+            <div className="confirm-actions">
+              <button className="btn btn--secondary btn--lg" onClick={() => setConfirmDelete(false)}>
+                Never mind
+              </button>
+              <button className="btn btn--danger btn--lg" onClick={handleDelete} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Yes, delete'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   )
 }

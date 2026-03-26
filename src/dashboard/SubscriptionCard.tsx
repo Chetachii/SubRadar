@@ -108,10 +108,20 @@ function ServiceLogo({ name, domain, bgColor }: LogoProps) {
 export default function SubscriptionCard({ subscription: sub, onRefresh, index }: Props) {
   const [editing, setEditing] = useState(false)
 
+  async function handleRestore() {
+    await chrome.runtime.sendMessage({
+      type: 'UPDATE_SUBSCRIPTION',
+      payload: { id: sub.id, patch: { status: 'active' } },
+    })
+    setEditing(true)
+  }
+
   const dueDate = sub.renewalDate ?? sub.trialEndDate
   const bgColor = getMonogramColor(sub.serviceName)
   const staggerDelay = `${Math.min(index * 50, 300)}ms`
-  const cardClass = INTENT_CARD_CLASS[sub.intent] ?? ''
+  const cardClass = sub.status === 'archived'
+    ? 'archived'
+    : (INTENT_CARD_CLASS[sub.intent] ?? '')
 
   return (
     <>
@@ -170,7 +180,11 @@ export default function SubscriptionCard({ subscription: sub, onRefresh, index }
             <span aria-hidden="true">{INTENT_ICON_MAP[sub.intent]}</span>
             {INTENT_LABELS[sub.intent] ?? sub.intent}
           </div>
-          <button className="btn btn--ghost" onClick={() => setEditing(true)}>Edit</button>
+          {sub.status === 'archived' ? (
+            <button className="btn btn--ghost" onClick={handleRestore}>Restore</button>
+          ) : (
+            <button className="btn btn--ghost" onClick={() => setEditing(true)}>Edit</button>
+          )}
         </div>
       </div>
 
@@ -179,6 +193,7 @@ export default function SubscriptionCard({ subscription: sub, onRefresh, index }
           subscription={sub}
           onSave={() => { setEditing(false); onRefresh() }}
           onClose={() => setEditing(false)}
+          onDelete={() => { setEditing(false); onRefresh() }}
         />
       )}
     </>
