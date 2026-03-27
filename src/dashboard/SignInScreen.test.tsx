@@ -142,7 +142,7 @@ describe('SignInScreen — OTP code flow', () => {
     })
     fireEvent.click(screen.getByText('Send code'))
     await waitFor(() =>
-      expect(screen.getByPlaceholderText('00000000')).toBeInTheDocument(),
+      expect(screen.getByPlaceholderText('000000')).toBeInTheDocument(),
     )
   })
 
@@ -152,9 +152,9 @@ describe('SignInScreen — OTP code flow', () => {
       target: { value: 'user@example.com' },
     })
     fireEvent.click(screen.getByText('Send code'))
-    await waitFor(() => expect(screen.getByPlaceholderText('00000000')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByPlaceholderText('000000')).toBeInTheDocument())
 
-    fireEvent.change(screen.getByPlaceholderText('00000000'), {
+    fireEvent.change(screen.getByPlaceholderText('000000'), {
       target: { value: '123456' },
     })
     fireEvent.click(screen.getByText('Verify code'))
@@ -178,10 +178,10 @@ describe('SignInScreen — OTP code flow', () => {
       target: { value: 'user@example.com' },
     })
     fireEvent.click(screen.getByText('Send code'))
-    await waitFor(() => expect(screen.getByPlaceholderText('00000000')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByPlaceholderText('000000')).toBeInTheDocument())
 
-    fireEvent.change(screen.getByPlaceholderText('00000000'), {
-      target: { value: '00000000' },
+    fireEvent.change(screen.getByPlaceholderText('000000'), {
+      target: { value: '000000' },
     })
     fireEvent.click(screen.getByText('Verify code'))
     await waitFor(() =>
@@ -195,11 +195,11 @@ describe('SignInScreen — OTP code flow', () => {
       target: { value: 'user@example.com' },
     })
     fireEvent.click(screen.getByText('Send code'))
-    await waitFor(() => expect(screen.getByPlaceholderText('00000000')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByPlaceholderText('000000')).toBeInTheDocument())
 
     fireEvent.click(screen.getByText('← Use a different email'))
     expect(screen.getByPlaceholderText('you@example.com')).toBeInTheDocument()
-    expect(screen.queryByPlaceholderText('00000000')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('000000')).not.toBeInTheDocument()
   })
 
   it('trims whitespace from email before calling signInWithOtp', async () => {
