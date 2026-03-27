@@ -148,15 +148,15 @@ export default function SignInScreen() {
         ) : (
           <>
             <p className="signin-code-prompt">
-              Enter the 6-digit code sent to <strong>{email}</strong>
+              Enter the code sent to <strong>{email}</strong>
             </p>
             <form className="signin-magic-form" onSubmit={handleVerifyCode}>
               <input
                 className="signin-email-input"
                 type="text"
                 inputMode="numeric"
-                maxLength={6}
-                placeholder="000000"
+                maxLength={8}
+                placeholder="00000000"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 required
