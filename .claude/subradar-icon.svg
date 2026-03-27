@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Rounded square background -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="#2563EB"/>
+  
+  <!-- Radar sweep sectors - layered opacity -->
+  <path d="M256 96 A168 168 0 1 1 88 264 L256 264 Z" fill="white" opacity="0.15"/>
+  <path d="M256 136 A128 128 0 1 1 128 264 L256 264 Z" fill="white" opacity="0.25"/>
+  <path d="M256 176 A88 88 0 1 1 168 264 L256 264 Z" fill="white" opacity="0.45"/>
+  
+  <!-- Sweep line -->
+  <line x1="256" y1="264" x2="256" y2="96" stroke="white" stroke-width="12" stroke-linecap="round"/>
+  
+  <!-- Center dot -->
+  <circle cx="256" cy="264" r="16" fill="white"/>
+  
+  <!-- Detected subscription ping -->
+  <circle cx="340" cy="168" r="22" fill="#FCD34D"/>
+  <circle cx="340" cy="168" r="36" fill="none" stroke="#FCD34D" stroke-width="6" opacity="0.4"/>
+  <circle cx="340" cy="168" r="52" fill="none" stroke="#FCD34D" stroke-width="4" opacity="0.2"/>
+</svg>

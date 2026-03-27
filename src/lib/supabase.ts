@@ -3,12 +3,25 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
-// persistSession/autoRefreshToken disabled: no auth is used, and service workers
-// don't have localStorage so the default storage would throw.
+// Service workers have no localStorage; use chrome.storage.local instead
+const chromeStorageAdapter = {
+  getItem: (key: string): Promise<string | null> =>
+    chrome.storage.local.get(key).then((r) => (r[key] as string) ?? null),
+  setItem: (key: string, value: string): Promise<void> =>
+    chrome.storage.local.set({ [key]: value }),
+  removeItem: (key: string): Promise<void> =>
+    chrome.storage.local.remove(key),
+}
+
+// detectSessionInUrl must be true in page contexts (dashboard/popup) to handle
+// the OAuth redirect fragment; false in service worker (no window)
+const isPageContext = typeof window !== 'undefined'
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
+    storage: chromeStorageAdapter,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: isPageContext,
   },
 })

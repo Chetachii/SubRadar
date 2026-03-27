@@ -4,8 +4,9 @@ import { listSubscriptions, createSubscription, deleteSubscription } from '../re
 import SubscriptionList from './SubscriptionList'
 import { getPreferences } from '../repository/preferencesRepository'
 import type { Preferences } from '../types/preferences'
-import { Ban as BanIcon, Bell as BellIcon, RotateCcw as RotateCcwIcon, X as XIcon, Search as SearchIcon } from 'lucide-react'
+import { Ban as BanIcon, Bell as BellIcon, RotateCcw as RotateCcwIcon, X as XIcon, Search as SearchIcon, LogOut as LogOutIcon } from 'lucide-react'
 import NotificationBell from './NotificationBell'
+import { supabase } from '../lib/supabase'
 
 function useCountUp(target: number) {
   const [value, setValue] = useState(0)
@@ -60,6 +61,7 @@ export default function Dashboard() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [prefs, setPrefs] = useState<Preferences | null>(null)
+  const [userEmail, setUserEmail] = useState<string | undefined>()
 
   async function load() {
     setLoading(true)
@@ -122,6 +124,15 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email))
+  }, [])
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    // onAuthStateChange in main.tsx flips to <SignInScreen />
+  }
+
+  useEffect(() => {
     load()
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
     const onVisible = () => {
@@ -167,6 +178,14 @@ export default function Dashboard() {
           </div>
           <div className="dashboard-header-actions">
             <NotificationBell subscriptions={subscriptions} prefs={prefs} onRefresh={load} />
+            <button
+              className="btn btn--ghost"
+              onClick={handleSignOut}
+              title={userEmail ?? 'Sign out'}
+              aria-label="Sign out"
+            >
+              <LogOutIcon size={16} />
+            </button>
             <div className="dev-tools">
               <button className="btn btn--ghost" onClick={seedTestData}>Seed test data</button>
               <button className="btn btn--ghost" onClick={clearTestData}>Clear</button>

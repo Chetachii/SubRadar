@@ -70,9 +70,12 @@ export async function getSubscriptionById(id: string): Promise<Subscription | nu
 export async function createSubscription(
   input: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<Subscription> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
   const { data, error } = await supabase
     .from('subscriptions')
-    .insert(toRow(input))
+    .insert({ ...toRow(input), user_id: user.id })
     .select()
     .single()
   if (error) throw error

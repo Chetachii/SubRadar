@@ -1,5 +1,78 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { installChromeMock, resetChromeMock } from '../test/chromeMock'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+const { state, authMock } = vi.hoisted(() => {
+  const state: { rows: Record<string, unknown>[]; counter: number } = { rows: [], counter: 0 }
+  const authMock = {
+    getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-uuid' } }, error: null }),
+  }
+  return { state, authMock }
+})
+
+vi.mock('../lib/supabase', () => {
+  function makeChain() {
+    let insertData: Record<string, unknown> | null = null
+    let updateData: Record<string, unknown> | null = null
+    let isDelete = false
+    let eqField: string | null = null
+    let eqValue: unknown = null
+
+    const chain: Record<string, unknown> = {
+      select() { return chain },
+      order() { return chain },
+      insert(data: Record<string, unknown>) { insertData = data; return chain },
+      update(data: Record<string, unknown>) { updateData = data; return chain },
+      delete() { isDelete = true; return chain },
+      eq(field: string, value: unknown) { eqField = field; eqValue = value; return chain },
+
+      async maybeSingle() {
+        const row = state.rows.find((r) => r[eqField!] === eqValue) ?? null
+        return { data: row, error: null }
+      },
+
+      async single() {
+        if (insertData) {
+          const row: Record<string, unknown> = {
+            id: `uuid-${++state.counter}`,
+            ...insertData,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          state.rows.push(row)
+          return { data: row, error: null }
+        }
+        if (updateData && eqField) {
+          const idx = state.rows.findIndex((r) => r[eqField!] === eqValue)
+          if (idx === -1) return { data: null, error: { message: 'Not found' } }
+          state.rows[idx] = { ...state.rows[idx], ...updateData, updated_at: new Date().toISOString() }
+          return { data: state.rows[idx], error: null }
+        }
+        return { data: null, error: null }
+      },
+
+      then(resolve: (r: unknown) => unknown, reject?: (e: unknown) => unknown) {
+        if (isDelete) {
+          if (eqField) {
+            const idx = state.rows.findIndex((r) => r[eqField!] === eqValue)
+            if (idx !== -1) state.rows.splice(idx, 1)
+          }
+          return Promise.resolve({ error: null }).then(resolve as () => unknown, reject)
+        }
+        let rows = [...state.rows]
+        if (eqField) rows = rows.filter((r) => r[eqField!] === eqValue)
+        return Promise.resolve({ data: rows, error: null }).then(resolve, reject)
+      },
+    }
+    return chain
+  }
+
+  return {
+    supabase: {
+      from: (_table: string) => makeChain(),
+      auth: authMock,
+    },
+  }
+})
+
 import {
   listSubscriptions,
   getSubscriptionById,
@@ -9,8 +82,9 @@ import {
 } from './subscriptionRepository'
 
 beforeEach(() => {
-  installChromeMock()
-  resetChromeMock()
+  state.rows.length = 0
+  state.counter = 0
+  authMock.getUser.mockResolvedValue({ data: { user: { id: 'test-user-uuid' } }, error: null })
 })
 
 describe('listSubscriptions', () => {
@@ -83,6 +157,23 @@ describe('createSubscription', () => {
     })
     const subs = await listSubscriptions()
     expect(subs).toHaveLength(1)
+  })
+
+  it('includes user_id in insert', async () => {
+    await createSubscription({
+      serviceName: 'Netflix',
+      intent: 'cancel',
+      status: 'active',
+      detectionSource: 'manual_entry',
+    })
+    expect(state.rows[0].user_id).toBe('test-user-uuid')
+  })
+
+  it('throws Not authenticated when user is null', async () => {
+    authMock.getUser.mockResolvedValueOnce({ data: { user: null }, error: null })
+    await expect(
+      createSubscription({ serviceName: 'Netflix', intent: 'cancel', status: 'active', detectionSource: 'manual_entry' }),
+    ).rejects.toThrow('Not authenticated')
   })
 })
 

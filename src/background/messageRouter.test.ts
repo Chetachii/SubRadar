@@ -21,10 +21,15 @@ vi.mock('./notifications', () => ({
   dispatchIfEligible: vi.fn(),
 }))
 
+vi.mock('../repository/analyticsRepository', () => ({
+  logEvent: vi.fn(),
+}))
+
 import { registerMessageRouter } from './messageRouter'
 import * as prefsRepo from '../repository/preferencesRepository'
 import * as subService from '../services/subscriptionService'
 import * as notifications from './notifications'
+import * as analyticsRepo from '../repository/analyticsRepository'
 
 type MessageListener = (
   message: { type: string; payload?: unknown },
@@ -202,5 +207,51 @@ describe('unknown message type', () => {
   it('returns error for unknown type', async () => {
     const response = (await dispatch('UNKNOWN_TYPE')) as { error: string }
     expect(response.error).toContain('Unknown message type')
+  })
+})
+
+describe('analytics logEvent calls', () => {
+  it('logs detection_triggered on DETECTION_FOUND', async () => {
+    const detection = { pageUrl: 'https://ex.com', sourceDomain: 'ex.com', confidenceScore: 5, matchedSignals: [] }
+    await dispatch('DETECTION_FOUND', detection)
+    expect(analyticsRepo.logEvent).toHaveBeenCalledWith('detection_triggered', { sourceDomain: 'ex.com' })
+  })
+
+  it('logs subscription_created on SAVE_SUBSCRIPTION', async () => {
+    const sub = makeSubscription({ serviceName: 'Netflix' })
+    vi.mocked(subService.createSubscription).mockResolvedValue(sub)
+    vi.mocked(notifications.dispatchIfEligible).mockReturnValue(false)
+    await dispatch('SAVE_SUBSCRIPTION', { serviceName: 'Netflix', intent: 'cancel', detectionSource: 'manual_entry' })
+    expect(analyticsRepo.logEvent).toHaveBeenCalledWith('subscription_created', { serviceName: 'Netflix' })
+  })
+
+  it('logs subscription_updated on UPDATE_SUBSCRIPTION', async () => {
+    const sub = makeSubscription({ id: 'sub-99' })
+    vi.mocked(subService.updateSubscription).mockResolvedValue(sub)
+    vi.mocked(notifications.dispatchIfEligible).mockReturnValue(false)
+    await dispatch('UPDATE_SUBSCRIPTION', { id: 'sub-99', patch: { cost: 10 } })
+    expect(analyticsRepo.logEvent).toHaveBeenCalledWith('subscription_updated', { id: 'sub-99' })
+  })
+
+  it('logs subscription_deleted on DELETE_SUBSCRIPTION', async () => {
+    vi.mocked(subService.deleteSubscription).mockResolvedValue(undefined)
+    await dispatch('DELETE_SUBSCRIPTION', { id: 'sub-99' })
+    expect(analyticsRepo.logEvent).toHaveBeenCalledWith('subscription_deleted', { id: 'sub-99' })
+  })
+
+  it('logs reminder_snoozed on SNOOZE_SUBSCRIPTION', async () => {
+    const sub = makeSubscription()
+    vi.mocked(subService.setSnooze).mockResolvedValue(sub)
+    vi.mocked(notifications.updateBadge).mockResolvedValue(undefined)
+    await dispatch('SNOOZE_SUBSCRIPTION', { id: sub.id, until: '2026-04-01' })
+    expect(analyticsRepo.logEvent).toHaveBeenCalledWith('reminder_snoozed', { id: sub.id, until: '2026-04-01' })
+  })
+
+  it('logs reminder_dismissed on DISMISS_REMINDER', async () => {
+    const sub = makeSubscription()
+    vi.mocked(subService.dismissReminder).mockResolvedValue(sub)
+    vi.mocked(notifications.updateBadge).mockResolvedValue(undefined)
+    await dispatch('DISMISS_REMINDER', { id: sub.id })
+    expect(analyticsRepo.logEvent).toHaveBeenCalledWith('reminder_dismissed', { id: sub.id })
   })
 })

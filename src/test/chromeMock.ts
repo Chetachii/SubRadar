@@ -54,6 +54,10 @@ export function installChromeMock() {
       ),
       onAlarm: { addListener: vi.fn() },
     },
+    identity: {
+      getRedirectURL: vi.fn(() => 'https://fake-id.chromiumapp.org/'),
+      launchWebAuthFlow: vi.fn().mockResolvedValue('https://fake-id.chromiumapp.org/?code=fake-code'),
+    },
     tabs: {
       create: vi.fn(),
     },

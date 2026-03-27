@@ -3,7 +3,7 @@
   "name": "SubRadar",
   "version": "0.1.0",
   "description": "Track subscriptions and free trials. Get reminded before you're charged.",
-  "permissions": ["storage", "notifications", "alarms", "tabs", "scripting", "activeTab"],
+  "permissions": ["storage", "notifications", "alarms", "tabs", "scripting", "activeTab", "identity"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background/index.ts",
