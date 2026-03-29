@@ -1,28 +1,55 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SubRadar</title>
-    <style>
-      html, body {
-        margin: 0;
-        min-width: 380px;
-        box-sizing: border-box;
-        background: #ffffff;
-      }
-      #root {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-      }
-    </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/popup/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SubRadar — Privacy Policy</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      color: #1a1a1a;
+      line-height: 1.7;
+    }
+    h1 { font-size: 28px; margin-bottom: 4px; }
+    h2 { font-size: 20px; margin-top: 32px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 32px; }
+    p { margin: 12px 0; }
+    a { color: #2563EB; }
+  </style>
+</head>
+<body>
+  <h1>SubRadar Privacy Policy</h1>
+  <p class="subtitle">Last updated: March 2026</p>
+
+  <p>SubRadar is a Chrome extension that helps you track subscriptions and free trials so you don't get charged unexpectedly. Your privacy matters, and this policy explains what data SubRadar collects, why, and how it's handled.</p>
+
+  <h2>What data SubRadar collects</h2>
+  <p><strong>Subscription details you enter:</strong> service name, renewal date, cost, billing cycle, and intent (cancel, renew, or remind). This data is stored in a secure database (Supabase) tied to your account so your subscriptions are saved across sessions.</p>
+  <p><strong>Account information:</strong> if you sign in with Google, SubRadar receives your name and email address from Google. If you sign in with email OTP, SubRadar stores your email address. This is used solely for authentication.</p>
+  <p><strong>Page content (for auto-detection):</strong> SubRadar reads text content on web pages you visit to detect subscription or pricing pages. This analysis happens entirely on your device — no page content is sent to any server.</p>
+
+  <h2>Third-party services</h2>
+  <p><strong>Clearbit:</strong> when you type a service name in the subscription form, SubRadar sends the name to Clearbit's API to fetch logo and autocomplete suggestions. Only the service name you type is sent — no other personal data.</p>
+  <p><strong>Google Favicon Service:</strong> SubRadar fetches website logos from Google's favicon CDN to display alongside your subscriptions. This means Google can see which service domains are associated with your subscriptions. Favicons are cached locally to minimize requests.</p>
+  <p><strong>Google Fonts:</strong> SubRadar may load the Inter font from Google Fonts for the auto-detect overlay. This is being transitioned to a locally bundled font to eliminate this external request.</p>
+  <p><strong>Supabase:</strong> your subscription data and account information are stored in Supabase, a hosted database service. Data is protected by Row Level Security (RLS), meaning you can only access your own data. No other user can see your subscriptions.</p>
+  <p><strong>Google OAuth:</strong> if you sign in with Google, the authentication flow is handled by Google and Supabase Auth. SubRadar only receives your name and email — it does not access your Google account data, contacts, or any other information.</p>
+
+  <h2>What SubRadar does NOT do</h2>
+  <p>SubRadar does not sell, share, or monetize your data. SubRadar does not track your browsing history. SubRadar does not run analytics or tracking scripts. SubRadar does not access your financial accounts or payment methods.</p>
+
+  <h2>Permissions explained</h2>
+  <p><strong>Read and change all your data on all websites:</strong> this permission is required for the auto-detection feature, which scans page content to identify when you're signing up for a subscription. SubRadar does not modify any website content — it only reads text to determine if the page is a pricing or signup page.</p>
+  <p><strong>Notifications:</strong> used to send you reminders before subscription renewal dates.</p>
+  <p><strong>Storage:</strong> used to save your preferences and notification state locally on your device.</p>
+
+  <h2>Data retention</h2>
+  <p>Your subscription data is stored as long as your account exists. You can delete individual subscriptions at any time from the dashboard. If you uninstall the extension, your local data is removed. To delete your account and all server-side data, contact us at the email below.</p>
+
+  <h2>Contact</h2>
+  <p>If you have questions about this privacy policy, reach out at <a href="mailto:chetachiihekwaba@gmail.com">chetachiihekwaba@gmail.com</a>.</p>
+</body>
 </html>
