@@ -124,7 +124,7 @@ export default function ManualEntryForm({ onSaved }: Props) {
       } finally {
         setWebsiteLooking(false)
       }
-    }, 400)
+    }, 500)
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [form.serviceName, websiteManuallyEdited])

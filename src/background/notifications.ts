@@ -48,13 +48,8 @@ export function dispatchReminderNotification(sub: Subscription, point: ReminderP
   const suffix = point === 'early' ? 'early' : 'renewal'
   const notifId = `subradar-${sub.id}-${suffix}`
   const options = buildNotificationOptions(sub, point)
-  console.log('[SubRadar] chrome.notifications.create', notifId, Date.now())
-  chrome.notifications.create(notifId, options, (createdId) => {
-    if (chrome.runtime.lastError) {
-      console.error('[SubRadar] notifications.create error:', chrome.runtime.lastError.message)
-    } else {
-      console.log('[SubRadar] notification created OK, id:', createdId, Date.now())
-    }
+  chrome.notifications.create(notifId, options, () => {
+    // chrome.runtime.lastError is checked implicitly by the runtime
   })
 }
 
@@ -68,7 +63,6 @@ export function dispatchIfEligible(sub: Subscription, prefs: Preferences): boole
   if (!isEligibleForReminder(sub, prefs)) return false
   const points = getEligibleReminderPoints(sub, prefs)
   if (points.length === 0) return false
-  console.log('[SubRadar] dispatchIfEligible →', sub.serviceName, Date.now())
   for (const point of points) {
     dispatchReminderNotification(sub, point)
   }
@@ -91,14 +85,10 @@ interface RunScanOpts {
 }
 
 export async function runScan(opts?: RunScanOpts): Promise<void> {
-  const t0 = Date.now()
-  console.log('[SubRadar] runScan started', t0)
-
   const [subscriptions, prefs] = await Promise.all([
     listSubscriptions(),
     opts?.prefs ? Promise.resolve(opts.prefs) : getPreferences(),
   ])
-  console.log('[SubRadar] runScan data loaded in', Date.now() - t0, 'ms | subs:', subscriptions.length)
 
   // Auto-archive active subscriptions overdue by 7+ days
   const overdueIds = new Set(
@@ -109,21 +99,15 @@ export async function runScan(opts?: RunScanOpts): Promise<void> {
   for (const id of overdueIds) {
     await subscriptionService.archiveSubscription(id)
   }
-  if (overdueIds.size > 0) {
-    console.log('[SubRadar] auto-archived overdue subs:', [...overdueIds])
-  }
-
   // Exclude just-archived subs and already-dispatched subs from the reminder scan
   const toScan = subscriptions.filter((s) =>
     !overdueIds.has(s.id) && !opts?.skipIds?.has(s.id)
   )
 
   const due = scanDueReminders(toScan, prefs)
-  console.log('[SubRadar] due:', due.map(s => `${s.serviceName} (${s.renewalDate}, sent: ${s.lastReminderSentAt})`))
 
   for (const sub of due) {
     const points = getEligibleReminderPoints(sub, prefs)
-    console.log('[SubRadar]', sub.serviceName, '→ points:', points)
     for (const point of points) {
       dispatchReminderNotification(sub, point)
     }
@@ -149,7 +133,6 @@ export async function updateBadge(subscriptions?: Subscription[]): Promise<void>
     return days >= 0 && days <= 3
   })
   const count = qualifying.length
-  console.log('[SubRadar] updateBadge count:', count, '| qualifying:', qualifying.map(s => `${s.serviceName}(snoozedUntil=${s.snoozedUntil ?? 'none'})`))
 
   chrome.action.setBadgeText({ text: count > 0 ? String(count) : '' })
   chrome.action.setBadgeBackgroundColor({ color: '#E74C3C' })

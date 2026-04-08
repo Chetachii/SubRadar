@@ -61,7 +61,15 @@ export default function SignInScreen() {
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
     setSending(false)
     if (error) {
-      setEmailError('Something went wrong. Try again.')
+      console.error('[SubRadar] signInWithOtp error:', error.status, error.message)
+      const msg = error.message?.toLowerCase() ?? ''
+      if (msg.includes('rate limit') || msg.includes('too many')) {
+        setEmailError('Too many attempts. Please wait a few minutes and try again.')
+      } else if (msg.includes('invalid email') || msg.includes('unable to validate')) {
+        setEmailError('Invalid email address.')
+      } else {
+        setEmailError(`Error: ${error.message}`)
+      }
       return
     }
     setStep('code')
@@ -71,13 +79,31 @@ export default function SignInScreen() {
     e.preventDefault()
     setVerifying(true)
     setVerifyError('')
-    const { error } = await supabase.auth.verifyOtp({
+
+    const token = code.trim()
+
+    // Try numeric OTP type first; fall back to magiclink token type for Supabase
+    // projects that use the Magic Link template instead of a dedicated OTP template
+    let { error } = await supabase.auth.verifyOtp({
       email: email.trim(),
-      token: code.trim(),
+      token,
       type: 'email',
     })
+
+    if (error) {
+      const { error: mlError } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token,
+        type: 'magiclink',
+      })
+      error = mlError
+    }
+
     setVerifying(false)
-    if (error) setVerifyError('Invalid or expired code. Try again.')
+    if (error) {
+      console.error('[SubRadar] verifyOtp failed:', error)
+      setVerifyError('Invalid or expired code. Try again.')
+    }
     // on success: onAuthStateChange in main.tsx fires → <Dashboard /> renders automatically
   }
 
@@ -154,9 +180,8 @@ export default function SignInScreen() {
               <input
                 className="signin-email-input"
                 type="text"
-                inputMode="numeric"
-                maxLength={8}
-                placeholder="00000000"
+                maxLength={64}
+                placeholder="Enter your code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 required

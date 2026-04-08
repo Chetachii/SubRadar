@@ -29,12 +29,9 @@ async function handleMessage(message: Message): Promise<unknown> {
     }
 
     case 'SAVE_SUBSCRIPTION': {
-      const t0 = Date.now()
-      console.log('[SubRadar] SAVE_SUBSCRIPTION t=0', t0)
       const prefs = await getPreferences()
       const input = message.payload as Parameters<typeof subscriptionService.createSubscription>[0]
       const sub = await subscriptionService.createSubscription(input, prefs)
-      console.log('[SubRadar] subscription created in', Date.now() - t0, 'ms — dispatching inline')
       // Dispatch immediately using already-loaded data — zero additional Supabase calls
       const dispatched = dispatchIfEligible(sub, prefs)
       // Run full scan async for badge + other subs; skip sub if already dispatched above
@@ -44,12 +41,9 @@ async function handleMessage(message: Message): Promise<unknown> {
     }
 
     case 'UPDATE_SUBSCRIPTION': {
-      const t0 = Date.now()
-      console.log('[SubRadar] UPDATE_SUBSCRIPTION t=0', t0)
       const prefs = await getPreferences()
       const { id, patch } = message.payload as { id: string; patch: Parameters<typeof subscriptionService.updateSubscription>[1] }
       const sub = await subscriptionService.updateSubscription(id, patch, prefs)
-      console.log('[SubRadar] subscription updated in', Date.now() - t0, 'ms — dispatching inline')
       const dispatched = dispatchIfEligible(sub, prefs)
       runScan({ prefs, skipIds: dispatched ? new Set([sub.id]) : undefined })
       void logEvent('subscription_updated', { id })

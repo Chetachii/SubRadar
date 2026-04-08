@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import type { Subscription } from '../types/subscription'
-import { listSubscriptions, createSubscription, deleteSubscription } from '../repository/subscriptionRepository'
+import { listSubscriptions } from '../repository/subscriptionRepository'
 import SubscriptionList from './SubscriptionList'
 import { getPreferences } from '../repository/preferencesRepository'
 import type { Preferences } from '../types/preferences'
@@ -76,55 +76,9 @@ export default function Dashboard() {
     }
   }
 
-  async function seedTestData() {
-    const now = new Date()
-    const addDays = (n: number) => {
-      const d = new Date(now)
-      d.setDate(d.getDate() + n)
-      return d.toISOString().split('T')[0]
-    }
-    const seeds: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>[] = [
-      { serviceName: 'Adobe Creative Cloud', sourceDomain: 'adobe.com',
-        cost: 54.99, currency: 'USD', billingFrequency: 'monthly',
-        renewalDate: addDays(3), intent: 'cancel', status: 'active',
-        detectionSource: 'auto_detected' },
-      { serviceName: 'Spotify', sourceDomain: 'spotify.com',
-        cost: 9.99, currency: 'USD', billingFrequency: 'monthly',
-        renewalDate: addDays(5), intent: 'remind_before_billing', status: 'active',
-        detectionSource: 'auto_detected' },
-      { serviceName: 'GitHub Copilot', sourceDomain: 'github.com',
-        cost: 10.00, currency: 'USD', billingFrequency: 'monthly',
-        trialEndDate: addDays(10), renewalDate: addDays(12), intent: 'cancel', status: 'active',
-        detectionSource: 'auto_detected' },
-      { serviceName: 'Netflix', sourceDomain: 'netflix.com',
-        cost: 15.99, currency: 'USD', billingFrequency: 'monthly',
-        renewalDate: addDays(28), intent: 'renew', status: 'active',
-        detectionSource: 'manual_entry' },
-      { serviceName: 'Hulu', sourceDomain: 'hulu.com',
-        cost: 7.99, currency: 'USD', billingFrequency: 'monthly',
-        renewalDate: addDays(20), intent: 'remind_before_billing', status: 'active',
-        detectionSource: 'auto_detected' },
-    ]
-    try {
-      await Promise.all(seeds.map(createSubscription))
-      await load()
-    } catch (err) {
-      console.error('[SubRadar] Failed to seed test data:', err)
-    }
-  }
-
-  async function clearTestData() {
-    try {
-      const subs = await listSubscriptions()
-      await Promise.all(subs.map((s) => deleteSubscription(s.id)))
-      await load()
-    } catch (err) {
-      console.error('[SubRadar] Failed to clear test data:', err)
-    }
-  }
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email))
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email)).catch(() => {})
   }, [])
 
   async function handleSignOut() {
@@ -172,24 +126,39 @@ export default function Dashboard() {
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="dashboard-header-row">
-          <div>
-            <h1 className="dashboard-title">SubRadar</h1>
-            <p className="dashboard-subtitle">Track free trials and subscriptions. Stay ahead of billing.</p>
+          <div className="dashboard-title-row">
+            <svg className="dashboard-logo-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="0" y="0" width="512" height="512" rx="112" fill="#2563EB" />
+              <path d="M256 120 A150 150 0 1 1 106 270 L256 270 Z" fill="white" opacity="0.2" />
+              <path d="M256 180 A90 90 0 1 1 166 270 L256 270 Z" fill="white" opacity="0.45" />
+              <line x1="256" y1="270" x2="256" y2="110" stroke="white" strokeWidth="16" strokeLinecap="round" />
+              <circle cx="256" cy="270" r="20" fill="white" />
+              <circle cx="345" cy="170" r="28" fill="#FCD34D" />
+            </svg>
+            <div>
+              <h1 className="dashboard-title">SubRadar</h1>
+              <p className="dashboard-subtitle">Track free trials and subscriptions. Stay ahead of billing.</p>
+            </div>
           </div>
           <div className="dashboard-header-actions">
             <NotificationBell subscriptions={subscriptions} prefs={prefs} onRefresh={load} />
             <button
-              className="btn btn--ghost"
+              className="dashboard-icon-btn"
               onClick={handleSignOut}
-              title={userEmail ?? 'Sign out'}
               aria-label="Sign out"
+              data-tooltip="Sign out"
             >
               <LogOutIcon size={16} />
             </button>
-            <div className="dev-tools">
-              <button className="btn btn--ghost" onClick={seedTestData}>Seed test data</button>
-              <button className="btn btn--ghost" onClick={clearTestData}>Clear</button>
-            </div>
+            {userEmail && (
+              <div
+                className="dashboard-avatar"
+                data-tooltip={userEmail}
+                aria-label={userEmail}
+              >
+                {userEmail[0].toUpperCase()}
+              </div>
+            )}
           </div>
         </div>
       </header>

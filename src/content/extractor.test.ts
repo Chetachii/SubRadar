@@ -126,10 +126,10 @@ describe('extractSignals', () => {
       expect(result.billingFrequency).toBe('yearly')
     })
 
-    it('detects yearly from "annually"', () => {
+    it('returns undefined for "billed annually" alone (billing descriptor, not price period)', () => {
       document.body.innerHTML = '<div>billed annually</div>'
       const result = extractSignals()
-      expect(result.billingFrequency).toBe('yearly')
+      expect(result.billingFrequency).toBeUndefined()
     })
 
     it('detects monthly from /month', () => {
@@ -157,7 +157,7 @@ describe('extractSignals', () => {
     })
 
     it('returns yearly only when yearly signals outnumber monthly', () => {
-      document.body.innerHTML = '<div>Annual plan: $96/year — billed annually, save vs monthly</div>'
+      document.body.innerHTML = '<div>Annual plan: $96/year ($8 per year) — compare with monthly options</div>'
       const result = extractSignals()
       expect(result.billingFrequency).toBe('yearly')
     })

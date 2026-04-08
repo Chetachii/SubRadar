@@ -47,8 +47,8 @@ function extractCurrency(): string | undefined {
 function extractBillingFrequency(): string | undefined {
   const text = (document.body?.innerText ?? '').toLowerCase()
   const weeklyCount  = (text.match(/\/week|per week|weekly/g) ?? []).length
-  const monthlyCount = (text.match(/\/month|per month|monthly/g) ?? []).length
-  const yearlyCount  = (text.match(/\/year|per year|annually/g) ?? []).length
+  const monthlyCount = (text.match(/\/month|per month|monthly|\/mo\b|\/ mo\b/g) ?? []).length
+  const yearlyCount  = (text.match(/\/year|per year|billed yearly/g) ?? []).length
   if (weeklyCount === 0 && monthlyCount === 0 && yearlyCount === 0) return undefined
   if (weeklyCount > monthlyCount && weeklyCount > yearlyCount) return 'weekly'
   // Prefer monthly on a tie — most SaaS pricing pages list annual as an upsell

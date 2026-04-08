@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useFavicon } from '../utils/faviconCache'
 import type { Subscription } from '../types/subscription'
 import type { ReminderSummary } from '../types/reminder'
 import { getReminderSummary } from '../services/reminderService'
@@ -87,18 +88,13 @@ function getMonogramColor(name: string): string {
 }
 
 function ServiceLogo({ name, domain }: { name: string; domain?: string }) {
-  const [imgFailed, setImgFailed] = useState(false)
+  const favicon = useFavicon(domain)
   const bgColor = getMonogramColor(name)
 
-  if (domain && !imgFailed) {
+  if (favicon) {
     return (
       <div className="sub-logo sub-logo--favicon" aria-hidden="true">
-        <img
-          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
-          alt=""
-          className="sub-logo-img"
-          onError={() => setImgFailed(true)}
-        />
+        <img src={favicon} alt="" className="sub-logo-img" />
       </div>
     )
   }

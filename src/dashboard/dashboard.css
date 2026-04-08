@@ -1751,6 +1751,86 @@ textarea.form-input {
 .notif-empty { padding: 32px 16px; text-align: center; font-size: 13px; color: var(--color-tertiary); }
 .dashboard-header-actions { display: flex; align-items: center; gap: 8px; }
 
+
+/* Dashboard title row — logo + text */
+.dashboard-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+/* Icon button — matches notification bell style */
+.dashboard-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+
+.dashboard-icon-btn:hover {
+  background: var(--color-ground);
+  color: var(--color-text-primary);
+}
+
+/* User avatar */
+.dashboard-avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: var(--weight-semibold);
+  border: 1px solid var(--color-border);
+  cursor: default;
+  flex-shrink: 0;
+}
+
+/* CSS tooltips */
+[data-tooltip] { position: relative; }
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-text-primary);
+  color: var(--color-text-inverse);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  font-family: var(--font-body);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+  z-index: 100;
+}
+
+[data-tooltip]:hover::after { opacity: 1; }
+
 /* ============================================
    Sign-in Screen
    ============================================ */

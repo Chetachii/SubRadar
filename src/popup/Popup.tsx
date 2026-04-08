@@ -1,20 +1,18 @@
 import { useState } from 'react'
+import { useFavicon } from '../utils/faviconCache'
 import ManualEntryForm from './ManualEntryForm'
 import type { BillingFrequency, Subscription } from '../types/subscription'
-import { Radio as RadioIcon, CheckCircle as CheckCircleIcon, X as XIcon, Bell as BellIcon } from 'lucide-react'
+import { CheckCircle as CheckCircleIcon, X as XIcon, Bell as BellIcon } from 'lucide-react'
 import { daysBetween } from '../utils/dates'
 import { formatCurrency } from '../utils/currency'
 import './popup.css'
 
 function ServiceAvatar({ serviceName, sourceDomain }: { serviceName: string; sourceDomain?: string }) {
-  const [imgFailed, setImgFailed] = useState(false)
-  const faviconUrl = sourceDomain && !imgFailed
-    ? `https://www.google.com/s2/favicons?domain=${sourceDomain}&sz=64`
-    : null
+  const favicon = useFavicon(sourceDomain)
   return (
-    <div className="success-avatar" aria-hidden="true">
-      {faviconUrl
-        ? <img src={faviconUrl} alt="" onError={() => setImgFailed(true)} />
+    <div className={`success-avatar${favicon ? ' success-avatar--favicon' : ''}`} aria-hidden="true">
+      {favicon
+        ? <img src={favicon} alt="" />
         : serviceName.charAt(0).toUpperCase()
       }
     </div>
@@ -53,7 +51,6 @@ export default function Popup() {
   const [savedSub, setSavedSub] = useState<Subscription | null>(null)
 
   function handleSaved(sub: Subscription) {
-    console.log('[SubRadar] handleSaved called with:', sub)
     setSavedSub(sub)
   }
 
@@ -66,7 +63,14 @@ export default function Popup() {
     <div className="popup">
       <div className="popup-header">
         <div className="popup-logo">
-          <div className="popup-logo-mark"><RadioIcon size={16} aria-hidden="true" /></div>
+          <svg className="popup-logo-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="0" y="0" width="512" height="512" rx="112" fill="#2563EB" />
+            <path d="M256 120 A150 150 0 1 1 106 270 L256 270 Z" fill="white" opacity="0.2" />
+            <path d="M256 180 A90 90 0 1 1 166 270 L256 270 Z" fill="white" opacity="0.45" />
+            <line x1="256" y1="270" x2="256" y2="110" stroke="white" strokeWidth="16" strokeLinecap="round" />
+            <circle cx="256" cy="270" r="20" fill="white" />
+            <circle cx="345" cy="170" r="28" fill="#FCD34D" />
+          </svg>
           <span className="popup-title">SubRadar</span>
         </div>
         <div className="popup-header-actions">

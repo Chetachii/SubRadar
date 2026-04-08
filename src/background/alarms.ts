@@ -6,7 +6,6 @@ export function setupDailyAlarm(): void {
   chrome.alarms.get(ALARM_NAME, (existing) => {
     if (!existing) {
       chrome.alarms.create(ALARM_NAME, { periodInMinutes: 1440 })
-      console.log('[SubRadar] Daily reminder alarm registered.')
     }
   })
 }

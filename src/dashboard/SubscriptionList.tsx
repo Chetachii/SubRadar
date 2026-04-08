@@ -61,6 +61,11 @@ export default function SubscriptionList({ subscriptions, filter, search, onRefr
     [...groups.cancel, ...groups.renew, ...groups.remindBeforeBilling]
 
   const items = [...unsorted].sort((a, b) => {
+    if (filter === 'all') {
+      // Most recently added first
+      return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0
+    }
+    // Other tabs: soonest renewal first
     if (!a.renewalDate && !b.renewalDate) return 0
     if (!a.renewalDate) return 1
     if (!b.renewalDate) return -1

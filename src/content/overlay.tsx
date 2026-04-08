@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import type { DetectionResult } from '../types/subscription'
 import TrackPrompt from '../popup/TrackPrompt'
 import popupStyles from '../popup/popup.css?inline'
-import { Radio as RadioIcon, X as XIcon } from 'lucide-react'
+import { X as XIcon } from 'lucide-react'
 
 interface ShellProps {
   result: DetectionResult
@@ -53,9 +53,14 @@ function OverlayShell({ result, onClose }: ShellProps) {
       >
         <div className="popup-header">
           <div className="popup-logo">
-            <div className="popup-logo-mark">
-              <RadioIcon size={16} />
-            </div>
+            <svg className="popup-logo-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="0" y="0" width="512" height="512" rx="112" fill="#2563EB" />
+              <path d="M256 120 A150 150 0 1 1 106 270 L256 270 Z" fill="white" opacity="0.2" />
+              <path d="M256 180 A90 90 0 1 1 166 270 L256 270 Z" fill="white" opacity="0.45" />
+              <line x1="256" y1="270" x2="256" y2="110" stroke="white" strokeWidth="16" strokeLinecap="round" />
+              <circle cx="256" cy="270" r="20" fill="white" />
+              <circle cx="345" cy="170" r="28" fill="#FCD34D" />
+            </svg>
             <span className="popup-title" id="sr-dialog-title">SubRadar</span>
           </div>
           <button className="popup-close" onClick={onClose} aria-label="Close">
@@ -86,9 +91,17 @@ export function mountOverlay(result: DetectionResult) {
   // Shadow root — full CSS isolation
   const shadow = host.attachShadow({ mode: 'closed' })
 
-  // Inter font for shadow DOM context — host page won't have it
+  // Inter font for shadow DOM — served locally so no Google network request
   const font = document.createElement('style')
-  font.textContent = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');`
+  const fontBase = chrome.runtime.getURL('fonts/')
+  font.textContent = [400, 500, 600, 700, 800].map((w) => `
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: ${w};
+      font-display: swap;
+      src: url('${fontBase}inter-latin-${w}-normal.woff2') format('woff2');
+    }`).join('')
   shadow.appendChild(font)
 
   // Inject popup.css into shadow
@@ -114,8 +127,11 @@ export function mountOverlay(result: DetectionResult) {
   mountContainer.id = 'sr-base'
   shadow.appendChild(mountContainer)
 
+  let tornDown = false
   function teardown() {
-    keepAlivePort.disconnect()
+    if (tornDown) return
+    tornDown = true
+    try { keepAlivePort.disconnect() } catch {}
     root.unmount()
     host.remove()
   }

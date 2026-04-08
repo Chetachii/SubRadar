@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useFavicon } from '../utils/faviconCache'
 import * as PopoverPrimitive from '@radix-ui/react-popover'
 import { Bell as BellIcon, Clock as ClockIcon, BellOff as BellOffIcon } from 'lucide-react'
 import type { Subscription } from '../types/subscription'
@@ -78,18 +79,13 @@ function getMonogramColor(name: string): string {
 }
 
 function ServiceLogo({ name, domain }: { name: string; domain?: string }) {
-  const [imgFailed, setImgFailed] = useState(false)
+  const favicon = useFavicon(domain)
   const bgColor = getMonogramColor(name)
 
-  if (domain && !imgFailed) {
+  if (favicon) {
     return (
       <div className="sub-logo sub-logo--favicon" aria-hidden="true">
-        <img
-          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
-          alt=""
-          className="sub-logo-img"
-          onError={() => setImgFailed(true)}
-        />
+        <img src={favicon} alt="" className="sub-logo-img" />
       </div>
     )
   }
@@ -218,7 +214,7 @@ export default function NotificationBell({ subscriptions, prefs, onRefresh }: Pr
     <>
       <PopoverPrimitive.Root>
         <PopoverPrimitive.Trigger asChild>
-          <button className="notif-bell-btn" aria-label="Notifications">
+          <button className="notif-bell-btn" aria-label="Notifications" data-tooltip="Notifications">
             <BellIcon size={16} />
             {activeCount > 0 && (
               <span className="notif-bell-badge">{activeCount}</span>

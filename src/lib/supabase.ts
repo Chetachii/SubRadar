@@ -6,11 +6,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 // Service workers have no localStorage; use chrome.storage.local instead
 const chromeStorageAdapter = {
   getItem: (key: string): Promise<string | null> =>
-    chrome.storage.local.get(key).then((r) => (r[key] as string) ?? null),
+    chrome.storage.local.get(key)
+      .then((r) => (r[key] as string) ?? null)
+      .catch(() => null),
   setItem: (key: string, value: string): Promise<void> =>
-    chrome.storage.local.set({ [key]: value }),
+    chrome.storage.local.set({ [key]: value }).catch(() => {}),
   removeItem: (key: string): Promise<void> =>
-    chrome.storage.local.remove(key),
+    chrome.storage.local.remove(key).catch(() => {}),
 }
 
 // detectSessionInUrl must be true in page contexts (dashboard/popup) to handle

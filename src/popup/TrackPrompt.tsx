@@ -1,20 +1,16 @@
 import { useState } from 'react'
+import { useFavicon } from '../utils/faviconCache'
 import type { BillingFrequency, DetectionResult, Intent, Subscription } from '../types/subscription'
 import { RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon, Pin as PinIcon, ChevronDown as ChevronDownIcon, CheckCircle as CheckCircleIcon } from 'lucide-react'
 import { CURRENCIES, formatCurrency } from '../utils/currency'
-import { createSubscription } from '../services/subscriptionService'
-import { getPreferences } from '../repository/preferencesRepository'
 import { daysBetween } from '../utils/dates'
 
 function ServiceAvatar({ serviceName, sourceDomain }: { serviceName: string; sourceDomain?: string }) {
-  const [imgFailed, setImgFailed] = useState(false)
-  const faviconUrl = sourceDomain && !imgFailed
-    ? `https://www.google.com/s2/favicons?domain=${sourceDomain}&sz=64`
-    : null
+  const favicon = useFavicon(sourceDomain)
   return (
-    <div className="success-avatar" aria-hidden="true">
-      {faviconUrl
-        ? <img src={faviconUrl} alt="" onError={() => setImgFailed(true)} />
+    <div className={`success-avatar${favicon ? ' success-avatar--favicon' : ''}`} aria-hidden="true">
+      {favicon
+        ? <img src={favicon} alt="" />
         : serviceName.charAt(0).toUpperCase()
       }
     </div>
@@ -123,21 +119,23 @@ export default function TrackPrompt({ result, onSaved, onDismiss }: Props) {
     setSaveError(null)
     setSaving(true)
     try {
-      const prefs = await getPreferences()
-      const sub = await createSubscription({
-        serviceName: serviceName.trim(),
-        intent: intent!,
-        isFreeTrial,
-        detectionSource: 'auto_detected' as const,
-        sourceDomain: result.sourceDomain,
-        cost: cost ? parseFloat(cost) : undefined,
-        currency,
-        billingFrequency: result.billingFrequency as BillingFrequency | undefined,
-        renewalDate: renewalDate || undefined,
-        trialEndDate: isFreeTrial ? (trialEndDate || undefined) : undefined,
-      }, prefs)
-      // Fire-and-forget: ask background to scan for notifications
-      chrome.runtime.sendMessage({ type: 'RUN_REMINDER_SCAN' }).catch(() => {})
+      const response = await chrome.runtime.sendMessage({
+        type: 'SAVE_SUBSCRIPTION',
+        payload: {
+          serviceName: serviceName.trim(),
+          intent: intent!,
+          isFreeTrial,
+          detectionSource: 'auto_detected' as const,
+          sourceDomain: result.sourceDomain,
+          cost: cost ? parseFloat(cost) : undefined,
+          currency,
+          billingFrequency: result.billingFrequency as BillingFrequency | undefined,
+          renewalDate: renewalDate || undefined,
+          trialEndDate: isFreeTrial ? (trialEndDate || undefined) : undefined,
+        },
+      })
+      if (response?.error) throw new Error(response.error)
+      const sub = response.subscription as Subscription
       setSavedSub(sub)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Something went wrong.')

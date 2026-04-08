@@ -28,7 +28,6 @@ chrome.notifications.onClicked.addListener((notifId) => {
 chrome.runtime.onInstalled.addListener(() => {
   setupDailyAlarm()
   runScan()
-  console.log('[SubRadar] Extension installed. Alarm and scan initialized.')
 })
 
 // On startup: ensure alarm is registered

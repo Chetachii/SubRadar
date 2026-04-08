@@ -3,6 +3,7 @@ import type { Subscription } from '../types/subscription'
 import { formatCurrency } from '../utils/currency'
 import SubscriptionEditor from './SubscriptionEditor'
 import { Calendar as CalendarIcon, RefreshCw as RefreshCwIcon, Bell as BellIcon, Ban as BanIcon } from 'lucide-react'
+import { useFavicon } from '../utils/faviconCache'
 
 interface Props {
   subscription: Subscription
@@ -82,18 +83,13 @@ interface LogoProps {
 }
 
 function ServiceLogo({ name, domain, bgColor }: LogoProps) {
-  const [imgFailed, setImgFailed] = useState(false)
+  const favicon = useFavicon(domain)
   const monogram = name.charAt(0).toUpperCase()
 
-  if (domain && !imgFailed) {
+  if (favicon) {
     return (
       <div className="sub-logo sub-logo--favicon" aria-hidden="true">
-        <img
-          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
-          alt=""
-          className="sub-logo-img"
-          onError={() => setImgFailed(true)}
-        />
+        <img src={favicon} alt="" className="sub-logo-img" />
       </div>
     )
   }
